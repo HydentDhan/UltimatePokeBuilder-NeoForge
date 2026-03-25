@@ -1,0 +1,53 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version '2.0.140'
+}
+
+version = mod_version
+group = "com.envyful.${mod_id}"
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+
+    maven { url = "https://maven.parchmentmc.org" }
+
+    flatDir {
+        dir 'libs'
+    }
+}
+
+neoForge {
+    version = project.neoforge_version
+
+    runs {
+        client {
+            client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+dependencies {
+    // Pulls the exact jar name from gradle.properties
+    implementation name: project.pixelmon_jar_name
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+base {
+    archivesName = 'UltimatePokeBuilder-NeoForge'
+}
