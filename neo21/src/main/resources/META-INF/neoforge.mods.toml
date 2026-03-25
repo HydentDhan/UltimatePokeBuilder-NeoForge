@@ -1,0 +1,35 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="All Rights Reserved"
+issueTrackerURL=""
+
+[[mods]]
+modId="ultimatepokebuilder"
+version="1.0.0"
+displayName="UltimatePokeBuilder"
+authors="envy (Rebuilt)"
+description='''
+A modern, native NeoForge UI-based Pokemon editor built from scratch for Pixelmon 1.21.1.
+'''
+
+# Ensures NeoForge loads Pixelmon BEFORE your mod
+[[dependencies.ultimatepokebuilder]]
+modId="pixelmon"
+type="required"
+direction="after"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.ultimatepokebuilder]]
+modId="neoforge"
+type="required"
+versionRange="[21.1,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.ultimatepokebuilder]]
+modId="minecraft"
+type="required"
+versionRange="[1.21.1,1.22)"
+ordering="NONE"
+side="BOTH"
