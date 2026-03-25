@@ -16,7 +16,6 @@ public class WebhookUtil {
 
         CompletableFuture.runAsync(() -> {
             try {
-                // Format the JSON strictly for Discord
                 String json = "{\"content\": \"" + message.replace("\"", "\\\"") + "\"}";
 
                 HttpRequest request = HttpRequest.newBuilder()

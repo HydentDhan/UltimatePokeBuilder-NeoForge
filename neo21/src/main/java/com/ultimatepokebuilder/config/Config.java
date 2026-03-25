@@ -23,7 +23,7 @@ public class Config {
         public final ModConfigSpec.ConfigValue<String> dbPass;
         public final ModConfigSpec.ConfigValue<String> dbTable;
 
-        // NEW SECTION: Declare the webhooks here!
+
         public final ModConfigSpec.ConfigValue<String> webhookTokens;
         public final ModConfigSpec.ConfigValue<String> webhookShards;
 
@@ -34,7 +34,7 @@ public class Config {
         public final ModConfigSpec.ConfigValue<List<? extends String>> specialSpecs;
         public final ModConfigSpec.DoubleValue shinyMultiplier;
 
-        // Standard Pricing (Tokens)
+
         public final ModConfigSpec.IntValue shinyCost;
         public final ModConfigSpec.IntValue abilityCost;
         public final ModConfigSpec.IntValue hiddenAbilityCost;
@@ -48,7 +48,8 @@ public class Config {
         public final ModConfigSpec.IntValue untradeableCost;
         public final ModConfigSpec.IntValue unbreedableCost;
 
-        // Mythic Pricing (Mythic Tokens)
+
+
         public final ModConfigSpec.IntValue mythicShinyCost;
         public final ModConfigSpec.IntValue mythicAbilityCost;
         public final ModConfigSpec.IntValue mythicHiddenAbilityCost;
@@ -60,7 +61,7 @@ public class Config {
         public final ModConfigSpec.IntValue mythicGrowthCost;
         public final ModConfigSpec.IntValue mythicBallCost;
 
-        // Special Pricing (Shards)
+
         public final ModConfigSpec.IntValue shardsShinyCost;
         public final ModConfigSpec.IntValue shardsAbilityCost;
         public final ModConfigSpec.IntValue shardsHiddenAbilityCost;
@@ -86,7 +87,7 @@ public class Config {
             currencySpecial = builder.define("currencySpecial", "shards");
             builder.pop();
 
-            // NEW SECTION: Discord Webhooks
+
             builder.push("Audit Logging (Webhooks)");
             webhookTokens = builder.comment("Discord Webhook URL for Standard Token purchases").define("webhookTokens", "");
             webhookShards = builder.comment("Discord Webhook URL for Mythic/Special Shard purchases").define("webhookShards", "");

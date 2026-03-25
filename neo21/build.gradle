@@ -39,7 +39,6 @@ neoForge {
     }
 }
 dependencies {
-    // Pulls the exact jar name from gradle.properties
     implementation name: project.pixelmon_jar_name
 }
 

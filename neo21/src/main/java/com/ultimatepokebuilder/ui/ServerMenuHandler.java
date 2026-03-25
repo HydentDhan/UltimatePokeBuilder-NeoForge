@@ -141,7 +141,7 @@ public class ServerMenuHandler {
             String ballName = pkmn.getBall().toString().replace("pixelmon:", "").replace("_", " ");
             ballName = ballName.substring(0, 1).toUpperCase() + ballName.substring(1);
 
-            // The Fancy Color-Coded Hover Lore
+
             ItemStack sprite = SpriteItemHelper.getPhoto(pkmn);
             sprite.set(DataComponents.CUSTOM_NAME, Component.literal("§6§l" + pkmn.getLocalizedName()));
 
