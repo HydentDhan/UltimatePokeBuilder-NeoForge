@@ -47,50 +47,39 @@ public class ServerMenuHandler {
         return item;
     }
 
-    // --- REFLECTION FIX: Dynamically parses 1.21.1 Data Components without compilation mapping errors ---
-    @SuppressWarnings("unchecked")
-    private static ItemStack createBallBtn(ServerPlayer sp, String ballId, String name, String lore) {
+    private static ItemStack createBallBtn(String ballId, String name, String lore) {
         ItemStack item = null;
         try {
-            String input = "pixelmon:poke_ball[pixelmon:poke_ball=" + ballId + "]";
-            com.mojang.brigadier.StringReader reader = new com.mojang.brigadier.StringReader(input);
-            Object registryAccess = sp.server.registryAccess();
+            Class<?> registryClass = Class.forName("com.pixelmonmod.pixelmon.api.pokemon.item.pokeball.PokeBallRegistry");
+            Object registryValue = registryClass.getMethod("getPokeBall", String.class).invoke(null, ballId);
 
-            Class<?> parserClass = Class.forName("net.minecraft.commands.arguments.item.ItemParser");
-            Object parseResult = null;
-
-            for (java.lang.reflect.Method m : parserClass.getMethods()) {
-                if (m.getParameterCount() == 2 && m.getParameterTypes()[1] == com.mojang.brigadier.StringReader.class) {
-                    parseResult = m.invoke(null, registryAccess, reader);
-                    break;
-                }
-            }
-
-            if (parseResult != null) {
-                for (java.lang.reflect.Method m : parseResult.getClass().getMethods()) {
-                    if (m.getReturnType() == ItemStack.class && m.getParameterCount() == 2) {
-                        item = (ItemStack) m.invoke(parseResult, 1, false);
-                        break;
-                    }
-                }
-
-                if (item == null) {
-                    Object itemHolder = parseResult.getClass().getMethod("item").invoke(parseResult);
-                    Object components = parseResult.getClass().getMethod("components").invoke(parseResult);
-                    item = new ItemStack((net.minecraft.core.Holder<net.minecraft.world.item.Item>) itemHolder);
-                    for (java.lang.reflect.Method m : ItemStack.class.getMethods()) {
-                        if (m.getName().equals("applyComponents") && m.getParameterCount() == 1) {
-                            m.invoke(item, components);
-                            break;
+            if (registryValue != null) {
+                Object pokeBall = registryValue.getClass().getMethod("get").invoke(registryValue);
+                if (pokeBall != null) {
+                    try {
+                        item = (ItemStack) pokeBall.getClass().getMethod("getItemStack").invoke(pokeBall);
+                    } catch (Exception e1) {
+                        try {
+                            Object rawItem = pokeBall.getClass().getMethod("getItem").invoke(pokeBall);
+                            item = new ItemStack((net.minecraft.world.item.Item) rawItem);
+                        } catch (Exception e2) {
+                            for (java.lang.reflect.Method m : pokeBall.getClass().getMethods()) {
+                                if (m.getReturnType() == ItemStack.class && m.getParameterCount() == 0) {
+                                    String mName = m.getName().toLowerCase();
+                                    if (!mName.contains("base") && !mName.contains("lid") && !mName.contains("craft")) {
+                                        item = (ItemStack) m.invoke(pokeBall);
+                                        break;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         } catch (Exception e) {
-            UltimatePokeBuilder.LOGGER.error("Failed to parse ball component dynamically: " + ballId, e);
+            UltimatePokeBuilder.LOGGER.error("Failed to generate Pokeball from Registry: " + ballId, e);
         }
 
-        // Failsafe guarantees it never returns paper
         if (item == null || item.isEmpty()) {
             item = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse("pixelmon:poke_ball")));
             if (item.isEmpty()) item = new ItemStack(Items.PAPER);
@@ -112,19 +101,18 @@ public class ServerMenuHandler {
     public static int getCost(String type, Pokemon pkmn, String cur) {
         int base = 0;
         boolean isShards = cur.equals(Config.SERVER.currencySpecial.get());
-        boolean isMythic = pkmn.isLegendary() || pkmn.isUltraBeast();
 
         switch(type) {
-            case "shiny": base = isShards ? Config.SERVER.shardsShinyCost.get() : (isMythic ? Config.SERVER.mythicShinyCost.get() : Config.SERVER.shinyCost.get()); break;
-            case "level": base = isShards ? Config.SERVER.shardsCostPerLevel.get() : (isMythic ? Config.SERVER.mythicCostPerLevel.get() : Config.SERVER.costPerLevel.get()); break;
-            case "ev": base = isShards ? Config.SERVER.shardsEvCost.get() : (isMythic ? Config.SERVER.mythicEvCost.get() : Config.SERVER.evCost.get()); break;
-            case "iv": base = isShards ? Config.SERVER.shardsIvCost.get() : (isMythic ? Config.SERVER.mythicIvCost.get() : Config.SERVER.ivCost.get()); break;
-            case "ability": base = isShards ? Config.SERVER.shardsAbilityCost.get() : (isMythic ? Config.SERVER.mythicAbilityCost.get() : Config.SERVER.abilityCost.get()); break;
-            case "hidden_ability": base = isShards ? Config.SERVER.shardsHiddenAbilityCost.get() : (isMythic ? Config.SERVER.mythicHiddenAbilityCost.get() : Config.SERVER.hiddenAbilityCost.get()); break;
-            case "nature": base = isShards ? Config.SERVER.shardsNatureCost.get() : (isMythic ? Config.SERVER.mythicNatureCost.get() : Config.SERVER.natureCost.get()); break;
-            case "gender": base = isShards ? Config.SERVER.shardsGenderCost.get() : (isMythic ? Config.SERVER.mythicGenderCost.get() : Config.SERVER.genderCost.get()); break;
-            case "growth": base = isShards ? Config.SERVER.shardsGrowthCost.get() : (isMythic ? Config.SERVER.mythicGrowthCost.get() : Config.SERVER.growthCost.get()); break;
-            case "ball": base = isShards ? Config.SERVER.shardsBallCost.get() : (isMythic ? Config.SERVER.mythicBallCost.get() : Config.SERVER.ballCost.get()); break;
+            case "shiny": base = isShards ? Config.SERVER.shardsShinyCost.get() : Config.SERVER.shinyCost.get(); break;
+            case "level": base = isShards ? Config.SERVER.shardsCostPerLevel.get() : Config.SERVER.costPerLevel.get(); break;
+            case "ev": base = isShards ? Config.SERVER.shardsEvCost.get() : Config.SERVER.evCost.get(); break;
+            case "iv": base = isShards ? Config.SERVER.shardsIvCost.get() : Config.SERVER.ivCost.get(); break;
+            case "ability": base = isShards ? Config.SERVER.shardsAbilityCost.get() : Config.SERVER.abilityCost.get(); break;
+            case "hidden_ability": base = isShards ? Config.SERVER.shardsHiddenAbilityCost.get() : Config.SERVER.hiddenAbilityCost.get(); break;
+            case "nature": base = isShards ? Config.SERVER.shardsNatureCost.get() : Config.SERVER.natureCost.get(); break;
+            case "gender": base = isShards ? Config.SERVER.shardsGenderCost.get() : Config.SERVER.genderCost.get(); break;
+            case "growth": base = isShards ? Config.SERVER.shardsGrowthCost.get() : Config.SERVER.growthCost.get(); break;
+            case "ball": base = isShards ? Config.SERVER.shardsBallCost.get() : Config.SERVER.ballCost.get(); break;
             case "untradeable": base = Config.SERVER.untradeableCost.get(); break;
             case "unbreedable": base = Config.SERVER.unbreedableCost.get(); break;
         }
@@ -156,7 +144,6 @@ public class ServerMenuHandler {
         sp.sendSystemMessage(Component.literal("§cInsufficient " + cur.toUpperCase() + "!"));
     }
 
-    // --- 1. PARTY MENU ---
     public static class PartyMenu extends ChestMenu {
         public PartyMenu(int id, Inventory inv) {
             super(MenuType.GENERIC_9x3, id, inv, new SimpleContainer(27), 3);
@@ -169,28 +156,44 @@ public class ServerMenuHandler {
             infoBtn.set(DataComponents.CUSTOM_NAME, Component.literal(Config.SERVER.infoName.get()));
 
             List<Component> loreLines = new ArrayList<>();
-            for (String line : Config.SERVER.infoLore.get()) loreLines.add(Component.literal(CoinsEngineHook.parsePAPI(sp.getUUID(), line)));
-
-            String papiLine = CoinsEngineHook.parsePAPI(sp.getUUID(), "§7Tokens: §e%coinsengine_balance_tokens% §8| §7Shards: §d%coinsengine_balance_shards%");
-            loreLines.add(Component.literal(" "));
-            loreLines.add(Component.literal(papiLine));
+            for (String line : Config.SERVER.infoLore.get()) {
+                loreLines.add(Component.literal(CoinsEngineHook.parsePAPI(sp.getUUID(), line)));
+            }
 
             infoBtn.set(DataComponents.LORE, new ItemLore(loreLines));
             getContainer().setItem(Config.SERVER.infoSlot.get(), infoBtn);
 
-            List<? extends Integer> partySlots = Config.SERVER.partySlots.get();
+            List<Integer> partySlots = Config.SERVER.partySlots.get();
             for (int i = 0; i < 6 && i < partySlots.size(); i++) {
                 Pokemon pkmn = StorageProxy.getPartyNow(sp).get(i);
                 if (pkmn != null) {
+
+                    // --- NEW: Extended UI Data Parsing ---
+                    String growthName = pkmn.getGrowth().unwrapKey().map(k -> k.location().getPath()).orElse("ordinary");
+                    growthName = growthName.substring(0, 1).toUpperCase() + growthName.substring(1);
+                    String ballName = pkmn.getBall().toString().replace("pixelmon:", "").replace("_", " ");
+                    ballName = ballName.substring(0, 1).toUpperCase() + ballName.substring(1);
+                    String gender = pkmn.getGender().name();
+                    gender = gender.substring(0, 1).toUpperCase() + gender.substring(1).toLowerCase();
+                    String shiny = pkmn.isShiny() ? "§eYes" : "§7No";
+                    String heldItem = pkmn.getHeldItem().isEmpty() ? "None" : pkmn.getHeldItem().getHoverName().getString();
+                    String form = pkmn.getForm().getName();
+                    if (form == null || form.isEmpty() || form.equalsIgnoreCase("base")) form = "Normal";
+
                     ItemStack sprite = SpriteItemHelper.getPhoto(pkmn);
                     sprite.set(DataComponents.CUSTOM_NAME, Component.literal("§6§l" + pkmn.getLocalizedName()));
 
-                    String ivs = "§a" + pkmn.getIVs().getStat(BattleStatsType.HP) + "§8/§a" + pkmn.getIVs().getStat(BattleStatsType.ATTACK) + "§8/§a" + pkmn.getIVs().getStat(BattleStatsType.DEFENSE) + "§8/§a" + pkmn.getIVs().getStat(BattleStatsType.SPECIAL_ATTACK) + "§8/§a" + pkmn.getIVs().getStat(BattleStatsType.SPECIAL_DEFENSE) + "§8/§a" + pkmn.getIVs().getStat(BattleStatsType.SPEED);
-                    String evs = "§e" + pkmn.getEVs().getStat(BattleStatsType.HP) + "§8/§e" + pkmn.getEVs().getStat(BattleStatsType.ATTACK) + "§8/§e" + pkmn.getEVs().getStat(BattleStatsType.DEFENSE) + "§8/§e" + pkmn.getEVs().getStat(BattleStatsType.SPECIAL_ATTACK) + "§8/§e" + pkmn.getEVs().getStat(BattleStatsType.SPECIAL_DEFENSE) + "§8/§e" + pkmn.getEVs().getStat(BattleStatsType.SPEED);
+                    String ivs = "§a" + pkmn.getIVs().getStat(BattleStatsType.HP) + "§8/§a" + pkmn.getIVs().getStat(BattleStatsType.ATTACK) + "§8/§a" + pkmn.getIVs().getStat(BattleStatsType.DEFENSE) + "§8/§a" + pkmn.getIVs().getStat(BattleStatsType.SPECIAL_ATTACK) + "§8/§a" + pkmn.getIVs().getStat(BattleStatsType.SPECIAL_DEFENSE) + "§8/§a" + pkmn.getIVs().getStat(BattleStatsType.SPEED) + " §7(" + pkmn.getIVs().getTotal() + "/186)";
+                    String evs = "§e" + pkmn.getEVs().getStat(BattleStatsType.HP) + "§8/§e" + pkmn.getEVs().getStat(BattleStatsType.ATTACK) + "§8/§e" + pkmn.getEVs().getStat(BattleStatsType.DEFENSE) + "§8/§e" + pkmn.getEVs().getStat(BattleStatsType.SPECIAL_ATTACK) + "§8/§e" + pkmn.getEVs().getStat(BattleStatsType.SPECIAL_DEFENSE) + "§8/§e" + pkmn.getEVs().getStat(BattleStatsType.SPEED) + " §7(" + pkmn.getEVs().getTotal() + "/510)";
 
                     sprite.set(DataComponents.LORE, new ItemLore(List.of(
                             Component.literal("§8§m----------------------------------"),
-                            Component.literal("§7Level: §b" + pkmn.getPokemonLevel() + "   §7Nature: §a" + pkmn.getNature().getLocalizedName()),
+                            Component.literal("§7Level: §b" + pkmn.getPokemonLevel() + "   §7Growth: §2" + growthName),
+                            Component.literal("§7Nature: §a" + pkmn.getNature().getLocalizedName() + "   §7Gender: §d" + gender),
+                            Component.literal("§7Ability: §e" + pkmn.getAbility().getLocalizedName() + (pkmn.getAbilitySlot() == 2 ? " §d(HA)" : " §7(Normal)")),
+                            Component.literal("§7Ball: §f" + ballName + "   §7Shiny: " + shiny),
+                            Component.literal("§7Form: §6" + form + "   §7Friend: §c" + pkmn.getFriendship() + "/255"),
+                            Component.literal("§7Held Item: §b" + heldItem),
                             Component.literal("§8§m----------------------------------"),
                             Component.literal("§7IVs (HP/Atk/Def/SpA/SpD/Spe):"),
                             Component.literal(ivs),
@@ -205,7 +208,7 @@ public class ServerMenuHandler {
         }
         @Override
         public void clicked(int slotId, int b, ClickType c, Player p) {
-            List<? extends Integer> partySlots = Config.SERVER.partySlots.get();
+            List<Integer> partySlots = Config.SERVER.partySlots.get();
             if (partySlots.contains(slotId)) {
                 int pIndex = partySlots.indexOf(slotId);
                 ((ServerPlayer) p).server.execute(() -> p.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pIndex), Component.literal("Builder"))));
@@ -214,7 +217,6 @@ public class ServerMenuHandler {
         @Override public boolean stillValid(Player p) { return true; }
     }
 
-    // --- 2. MAIN BUILDER MENU ---
     public static class BuilderMenu extends ChestMenu {
         private final int pSlot;
         public BuilderMenu(int id, Inventory inv, int pSlot) {
@@ -227,10 +229,17 @@ public class ServerMenuHandler {
             if (pkmn == null) return;
             String cur = getCurrency(pkmn);
 
+            // --- NEW: Extended UI Data Parsing ---
             String growthName = pkmn.getGrowth().unwrapKey().map(k -> k.location().getPath()).orElse("ordinary");
             growthName = growthName.substring(0, 1).toUpperCase() + growthName.substring(1);
             String ballName = pkmn.getBall().toString().replace("pixelmon:", "").replace("_", " ");
             ballName = ballName.substring(0, 1).toUpperCase() + ballName.substring(1);
+            String gender = pkmn.getGender().name();
+            gender = gender.substring(0, 1).toUpperCase() + gender.substring(1).toLowerCase();
+            String shiny = pkmn.isShiny() ? "§eYes" : "§7No";
+            String heldItem = pkmn.getHeldItem().isEmpty() ? "None" : pkmn.getHeldItem().getHoverName().getString();
+            String form = pkmn.getForm().getName();
+            if (form == null || form.isEmpty() || form.equalsIgnoreCase("base")) form = "Normal";
 
             ItemStack sprite = SpriteItemHelper.getPhoto(pkmn);
             sprite.set(DataComponents.CUSTOM_NAME, Component.literal("§6§l" + pkmn.getLocalizedName()));
@@ -241,8 +250,11 @@ public class ServerMenuHandler {
             sprite.set(DataComponents.LORE, new ItemLore(List.of(
                     Component.literal("§8§m----------------------------------"),
                     Component.literal("§7Level: §b" + pkmn.getPokemonLevel() + "   §7Growth: §2" + growthName),
-                    Component.literal("§7Nature: §a" + pkmn.getNature().getLocalizedName() + "   §7Ball: §f" + ballName),
+                    Component.literal("§7Nature: §a" + pkmn.getNature().getLocalizedName() + "   §7Gender: §d" + gender),
                     Component.literal("§7Ability: §e" + pkmn.getAbility().getLocalizedName() + (pkmn.getAbilitySlot() == 2 ? " §d(HA)" : " §7(Normal)")),
+                    Component.literal("§7Ball: §f" + ballName + "   §7Shiny: " + shiny),
+                    Component.literal("§7Form: §6" + form + "   §7Friend: §c" + pkmn.getFriendship() + "/255"),
+                    Component.literal("§7Held Item: §b" + heldItem),
                     Component.literal("§8§m----------------------------------"),
                     Component.literal("§7IVs (HP/Atk/Def/SpA/SpD/Spe):"),
                     Component.literal(ivs),
@@ -254,19 +266,19 @@ public class ServerMenuHandler {
             getContainer().setItem(Config.SERVER.slotPokemon.get(), sprite);
 
             if (pkmn.isShiny()) {
-                getContainer().setItem(Config.SERVER.slotShiny.get(), createBtn("minecraft:barrier", "§cAlready Shiny", "§7This Pokémon is already Shiny."));
+                getContainer().setItem(Config.SERVER.slotShiny.get(), createBtn("minecraft:sponge", "§eRevert Shiny", "§7Cost: " + getCost("shiny", pkmn, cur)));
             } else {
                 getContainer().setItem(Config.SERVER.slotShiny.get(), createBtn("pixelmon:shiny_stone", "§6Make Shiny", "§7Cost: " + getCost("shiny", pkmn, cur)));
             }
 
             if (pkmn.hasFlag(Flags.UNTRADEABLE)) {
-                getContainer().setItem(Config.SERVER.slotUntradeable.get(), createBtn("minecraft:barrier", "§cAlready Untradeable", "§7This Pokémon cannot be traded."));
+                getContainer().setItem(Config.SERVER.slotUntradeable.get(), createBtn("minecraft:gold_nugget", "§eMake Tradeable", "§7Cost: " + getCost("untradeable", pkmn, cur)));
             } else {
                 getContainer().setItem(Config.SERVER.slotUntradeable.get(), createBtn("minecraft:iron_bars", "§cMake Untradeable", "§7Cost: " + getCost("untradeable", pkmn, cur)));
             }
 
             if (pkmn.hasFlag(Flags.UNBREEDABLE)) {
-                getContainer().setItem(Config.SERVER.slotUnbreedable.get(), createBtn("minecraft:barrier", "§cAlready Unbreedable", "§7This Pokémon cannot breed."));
+                getContainer().setItem(Config.SERVER.slotUnbreedable.get(), createBtn("minecraft:egg", "§eMake Breedable", "§7Cost: " + getCost("unbreedable", pkmn, cur)));
             } else {
                 getContainer().setItem(Config.SERVER.slotUnbreedable.get(), createBtn("minecraft:iron_bars", "§cMake Unbreedable", "§7Cost: " + getCost("unbreedable", pkmn, cur)));
             }
@@ -277,7 +289,7 @@ public class ServerMenuHandler {
             getContainer().setItem(Config.SERVER.slotGrowth.get(), createBtn("minecraft:slime_block", "§2Set Growth", "§7Cost: " + getCost("growth", pkmn, cur)));
             getContainer().setItem(Config.SERVER.slotGender.get(), createBtn("minecraft:pink_dye", "§dSet Gender", "§7Cost: " + getCost("gender", pkmn, cur)));
 
-            getContainer().setItem(Config.SERVER.slotBall.get(), createBallBtn(sp, "poke_ball", "§fSwap Pokeball", "§7Cost: " + getCost("ball", pkmn, cur)));
+            getContainer().setItem(Config.SERVER.slotBall.get(), createBallBtn("poke_ball", "§fSwap Pokeball", "§7Cost: " + getCost("ball", pkmn, cur)));
 
             getContainer().setItem(Config.SERVER.slotEvs.get(), createBtn("pixelmon:hp_up", "§cAdjust EVs", "§7Cost per EV: " + getCost("ev", pkmn, cur)));
             getContainer().setItem(Config.SERVER.slotIvs.get(), createBtn("pixelmon:calcium", "§aAdjust IVs", "§7Cost per IV: " + getCost("iv", pkmn, cur)));
@@ -302,14 +314,13 @@ public class ServerMenuHandler {
             if (slot == Config.SERVER.slotEvs.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new StatSelectMenu(id, inv, pSlot, "ev"), Component.literal("Select EV Stat"))));
             if (slot == Config.SERVER.slotIvs.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new StatSelectMenu(id, inv, pSlot, "iv"), Component.literal("Select IV Stat"))));
 
-            if (slot == Config.SERVER.slotShiny.get()) openConfirm(sp, pSlot, "shiny", getCost("shiny", pkmn, cur), cur);
-            if (slot == Config.SERVER.slotUntradeable.get()) openConfirm(sp, pSlot, "untradeable", getCost("untradeable", pkmn, cur), cur);
-            if (slot == Config.SERVER.slotUnbreedable.get()) openConfirm(sp, pSlot, "unbreedable", getCost("unbreedable", pkmn, cur), cur);
+            if (slot == Config.SERVER.slotShiny.get()) openConfirm(sp, pSlot, pkmn.isShiny() ? "unshiny" : "shiny", getCost("shiny", pkmn, cur), cur);
+            if (slot == Config.SERVER.slotUntradeable.get()) openConfirm(sp, pSlot, pkmn.hasFlag(Flags.UNTRADEABLE) ? "tradeable" : "untradeable", getCost("untradeable", pkmn, cur), cur);
+            if (slot == Config.SERVER.slotUnbreedable.get()) openConfirm(sp, pSlot, pkmn.hasFlag(Flags.UNBREEDABLE) ? "breedable" : "unbreedable", getCost("unbreedable", pkmn, cur), cur);
         }
         @Override public boolean stillValid(Player p) { return true; }
     }
 
-    // --- 3. ABILITY MENU ---
     public static class AbilityMenu extends ChestMenu {
         private final int pSlot;
 
@@ -354,7 +365,6 @@ public class ServerMenuHandler {
         @Override public boolean stillValid(Player p) { return true; }
     }
 
-    // --- 4. STAT SELECT MENU (For EVs and IVs) ---
     public static class StatSelectMenu extends ChestMenu {
         private final int pSlot;
         private final String mode;
@@ -399,7 +409,6 @@ public class ServerMenuHandler {
         @Override public boolean stillValid(Player p) { return true; }
     }
 
-    // --- 5. UNIVERSAL ADJUST MENU ---
     public static class AdjustMenu extends ChestMenu {
         private final int pSlot;
         private final String mode;
@@ -481,7 +490,6 @@ public class ServerMenuHandler {
         @Override public boolean stillValid(Player p) { return true; }
     }
 
-    // --- 6. SELECTION MENUS ---
     public static class NatureMenu extends ChestMenu {
         private final int pSlot;
         public NatureMenu(int id, Inventory inv, int pSlot) {
@@ -572,9 +580,8 @@ public class ServerMenuHandler {
             for (int i = 0; i < 36; i++) getContainer().setItem(i, getFiller());
             String[] balls = {"poke_ball", "great_ball", "ultra_ball", "master_ball", "premier_ball", "heal_ball", "net_ball", "nest_ball", "dive_ball", "dusk_ball", "timer_ball", "quick_ball", "repeat_ball", "safari_ball", "fast_ball", "level_ball", "lure_ball", "heavy_ball", "love_ball", "friend_ball", "moon_ball", "sport_ball", "park_ball", "dream_ball", "beast_ball", "cherish_ball"};
 
-            ServerPlayer sp = (ServerPlayer) inv.player;
             for (int i = 0; i < Math.min(balls.length, 35); i++) {
-                getContainer().setItem(i, createBallBtn(sp, balls[i], "§f" + balls[i].replace("_", " ").toUpperCase(), "§7Click to swap ball"));
+                getContainer().setItem(i, createBallBtn(balls[i], "§f" + balls[i].replace("_", " ").toUpperCase(), "§7Click to swap ball"));
             }
             getContainer().setItem(35, createBtn("minecraft:barrier", "§cBack", null));
         }
@@ -592,7 +599,6 @@ public class ServerMenuHandler {
         @Override public boolean stillValid(Player p) { return true; }
     }
 
-    // --- 7. THE UNIVERSAL CONFIRM MENU ---
     public static class ConfirmMenu extends ChestMenu {
         private final int pSlot;
         private final String action;
@@ -619,8 +625,11 @@ public class ServerMenuHandler {
                 Pokemon pkmn = StorageProxy.getPartyNow(sp).get(pSlot);
 
                 if (action.equals("shiny") && pkmn.isShiny() ||
+                        action.equals("unshiny") && !pkmn.isShiny() ||
                         action.equals("untradeable") && pkmn.hasFlag(Flags.UNTRADEABLE) ||
+                        action.equals("tradeable") && !pkmn.hasFlag(Flags.UNTRADEABLE) ||
                         action.equals("unbreedable") && pkmn.hasFlag(Flags.UNBREEDABLE) ||
+                        action.equals("breedable") && !pkmn.hasFlag(Flags.UNBREEDABLE) ||
                         (action.startsWith("ability:") && pkmn.getAbilitySlot() == Integer.parseInt(action.split(":")[1]))) {
                     sp.sendSystemMessage(Component.literal("§cPokémon already has that trait!"));
                     return;
@@ -629,12 +638,28 @@ public class ServerMenuHandler {
                 if (CoinsEngineHook.takeBalance(sp, cur, finalCost)) {
                     try {
                         if (action.equals("shiny")) pkmn.setShiny(true);
-                        else if (action.startsWith("ability:")) pkmn.setAbilitySlot(Integer.parseInt(action.split(":")[1]));
+                        else if (action.equals("unshiny")) pkmn.setShiny(false);
                         else if (action.equals("untradeable")) pkmn.addFlag(Flags.UNTRADEABLE);
+                        else if (action.equals("tradeable")) pkmn.removeFlag(Flags.UNTRADEABLE);
                         else if (action.equals("unbreedable")) pkmn.addFlag(Flags.UNBREEDABLE);
+                        else if (action.equals("breedable")) pkmn.removeFlag(Flags.UNBREEDABLE);
+                        else if (action.startsWith("ability:")) pkmn.setAbilitySlot(Integer.parseInt(action.split(":")[1]));
+                        else if (action.startsWith("growth:")) {
+                            String targetGrowth = action.split(":")[1].toLowerCase();
+                            boolean applied = false;
+                            for (com.pixelmonmod.pixelmon.api.pokemon.growth.Growth g : com.pixelmonmod.pixelmon.api.util.helpers.RegistryHelper.getAll(com.pixelmonmod.pixelmon.init.registry.PixelmonRegistry.GROWTH_REGISTRY)) {
+                                if (g.getName().getString().toLowerCase().contains(targetGrowth)) {
+                                    pkmn.setGrowth(net.minecraft.core.Holder.direct(g));
+                                    applied = true;
+                                    break;
+                                }
+                            }
+                            if (!applied) {
+                                PokemonSpecificationProxy.create(action).get().apply(pkmn);
+                            }
+                        }
                         else if (action.startsWith("nature:")) PokemonSpecificationProxy.create(action).get().apply(pkmn);
                         else if (action.startsWith("gender:")) PokemonSpecificationProxy.create(action).get().apply(pkmn);
-                        else if (action.startsWith("growth:")) PokemonSpecificationProxy.create(action).get().apply(pkmn);
                         else if (action.startsWith("ball:")) PokemonSpecificationProxy.create(action).get().apply(pkmn);
 
                         triggerSuccess(sp, pkmn, action, finalCost, cur);

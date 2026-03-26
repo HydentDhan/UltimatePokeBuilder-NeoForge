@@ -40,6 +40,7 @@ neoForge {
 }
 dependencies {
     implementation name: project.pixelmon_jar_name
+    implementation 'org.yaml:snakeyaml:2.2'
 }
 
 tasks.withType(JavaCompile).configureEach {

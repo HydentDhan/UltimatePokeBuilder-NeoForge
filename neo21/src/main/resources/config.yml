@@ -1,0 +1,76 @@
+economy-integration:
+  currencyStandard: "tokens"
+  currencySpecial: "shards"
+  ecoTakeCmdStandard: "tokens take %player% %amount%"
+  ecoTakeCmdSpecial: "shards take %player% %amount%"
+  ecoCheckPapiStandard: "%coinsengine_balance_raw_tokens%"
+  ecoCheckPapiSpecial: "%coinsengine_balance_raw_shards%"
+
+audit-logging:
+  webhookTokens: ""
+  webhookShards: ""
+
+general-options:
+  blacklistSpecs:
+    - "ditto"
+  specialSpecs:
+    - "palette:special"
+  shinyMultiplier: 2.0
+
+pricing-standard:
+  shinyCost: 200
+  abilityCost: 100
+  hiddenAbilityCost: 200
+  costPerLevel: 10
+  evCost: 2
+  ivCost: 10
+  natureCost: 50
+  genderCost: 50
+  growthCost: 50
+  ballCost: 50
+  untradeableCost: 50
+  unbreedableCost: 50
+
+
+pricing-special:
+  shardsShinyCost: 10
+  shardsAbilityCost: 5
+  shardsHiddenAbilityCost: 8
+  shardsCostPerLevel: 2
+  shardsEvCost: 1
+  shardsIvCost: 2
+  shardsNatureCost: 5
+  shardsGenderCost: 5
+  shardsGrowthCost: 5
+  shardsBallCost: 5
+
+ui-layout:
+  partySlots:
+    - 10
+    - 11
+    - 12
+    - 14
+    - 15
+    - 16
+  infoSlot: 4
+  infoMaterial: "minecraft:book"
+  infoName: "§e§lInformation"
+  infoLore:
+    - "§7Welcome to UltimatePokeBuilder!"
+    - "§7Select a Pokemon to edit its stats."
+    - " "
+    - "§7Tokens: §e%coinsengine_balance_tokens%"
+    - "§7Shards: §d%coinsengine_balance_shards%"
+  slotPokemon: 4
+  slotShiny: 19
+  slotLevel: 20
+  slotAbility: 21
+  slotNature: 22
+  slotGrowth: 23
+  slotGender: 24
+  slotBall: 25
+  slotEvs: 29
+  slotIvs: 30
+  slotUntradeable: 32
+  slotUnbreedable: 33
+  slotBack: 49

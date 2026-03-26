@@ -1,181 +1,171 @@
 package com.ultimatepokebuilder.config;
 
-import net.neoforged.neoforge.common.ModConfigSpec;
-import org.apache.commons.lang3.tuple.Pair;
+import com.ultimatepokebuilder.UltimatePokeBuilder;
+import org.yaml.snakeyaml.Yaml;
+
+import java.io.*;
+import java.nio.file.Files;
 import java.util.List;
+import java.util.Map;
 
 public class Config {
-    public static final ModConfigSpec SERVER_SPEC;
-    public static final Server SERVER;
+    private static Map<String, Object> data;
+    public static final Server SERVER = new Server();
 
-    static {
-        final Pair<Server, ModConfigSpec> specPair = new ModConfigSpec.Builder().configure(Server::new);
-        SERVER_SPEC = specPair.getRight();
-        SERVER = specPair.getLeft();
+    public static void loadConfig(File configDir) {
+        File configFile = new File(configDir, "UltimatePokeBuilder/config.yml");
+
+        if (!configFile.getParentFile().exists()) {
+            configFile.getParentFile().mkdirs();
+        }
+
+        if (!configFile.exists()) {
+            try (InputStream in = Config.class.getResourceAsStream("/config.yml")) {
+                if (in != null) {
+                    Files.copy(in, configFile.toPath());
+                } else {
+                    UltimatePokeBuilder.LOGGER.error("Default config.yml not found in resources folder!");
+                    configFile.createNewFile();
+                }
+            } catch (IOException e) {
+                UltimatePokeBuilder.LOGGER.error("Failed to generate default config.yml", e);
+            }
+        }
+
+        try (InputStream in = new FileInputStream(configFile)) {
+            Yaml yaml = new Yaml();
+            data = yaml.load(in);
+            SERVER.reload();
+        } catch (Exception e) {
+            UltimatePokeBuilder.LOGGER.error("Failed to load config.yml. Make sure formatting is correct!", e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object get(String path) {
+        if (data == null) return null;
+        String[] keys = path.split("\\.");
+        Map<String, Object> currentMap = data;
+
+        for (int i = 0; i < keys.length - 1; i++) {
+            Object obj = currentMap.get(keys[i]);
+            if (obj instanceof Map) {
+                currentMap = (Map<String, Object>) obj;
+            } else {
+                return null;
+            }
+        }
+        return currentMap.get(keys[keys.length - 1]);
+    }
+
+    public static class ConfigValue<T> {
+        private T value;
+        private final String path;
+        private final T def;
+
+        public ConfigValue(String path, T def) {
+            this.path = path;
+            this.def = def;
+            this.value = def;
+        }
+
+        public T get() { return value; }
+
+        @SuppressWarnings("unchecked")
+        public void update() {
+            Object val = Config.get(path);
+            if (val != null) {
+                if (def instanceof Integer && val instanceof Number) {
+                    this.value = (T) Integer.valueOf(((Number) val).intValue());
+                } else if (def instanceof Double && val instanceof Number) {
+                    this.value = (T) Double.valueOf(((Number) val).doubleValue());
+                } else {
+                    this.value = (T) val;
+                }
+            } else {
+                this.value = def;
+            }
+        }
     }
 
     public static class Server {
-        public final ModConfigSpec.BooleanValue useMySQL;
-        public final ModConfigSpec.ConfigValue<String> dbHost;
-        public final ModConfigSpec.IntValue dbPort;
-        public final ModConfigSpec.ConfigValue<String> dbName;
-        public final ModConfigSpec.ConfigValue<String> dbUser;
-        public final ModConfigSpec.ConfigValue<String> dbPass;
-        public final ModConfigSpec.ConfigValue<String> dbTable;
+        // --- Separated Economy Variables ---
+        public final ConfigValue<String> currencyStandard = new ConfigValue<>("economy-integration.currencyStandard", "tokens");
+        public final ConfigValue<String> currencySpecial = new ConfigValue<>("economy-integration.currencySpecial", "shards");
+        public final ConfigValue<String> ecoTakeCmdStandard = new ConfigValue<>("economy-integration.ecoTakeCmdStandard", "tokens take %player% %amount%");
+        public final ConfigValue<String> ecoTakeCmdSpecial = new ConfigValue<>("economy-integration.ecoTakeCmdSpecial", "shards take %player% %amount%");
+        public final ConfigValue<String> ecoCheckPapiStandard = new ConfigValue<>("economy-integration.ecoCheckPapiStandard", "%coinsengine_balance_raw_tokens%");
+        public final ConfigValue<String> ecoCheckPapiSpecial = new ConfigValue<>("economy-integration.ecoCheckPapiSpecial", "%coinsengine_balance_raw_shards%");
 
-        public final ModConfigSpec.ConfigValue<String> currencyStandard;
-        public final ModConfigSpec.ConfigValue<String> currencySpecial;
+        public final ConfigValue<String> webhookTokens = new ConfigValue<>("audit-logging.webhookTokens", "");
+        public final ConfigValue<String> webhookShards = new ConfigValue<>("audit-logging.webhookShards", "");
 
-        public final ModConfigSpec.ConfigValue<String> webhookTokens;
-        public final ModConfigSpec.ConfigValue<String> webhookShards;
+        public final ConfigValue<List<String>> blacklistSpecs = new ConfigValue<>("general-options.blacklistSpecs", List.of("ditto"));
+        public final ConfigValue<List<String>> specialSpecs = new ConfigValue<>("general-options.specialSpecs", List.of("palette:special"));
+        public final ConfigValue<Double> shinyMultiplier = new ConfigValue<>("general-options.shinyMultiplier", 2.0);
 
-        public final ModConfigSpec.ConfigValue<List<? extends String>> blacklistSpecs;
-        public final ModConfigSpec.ConfigValue<List<? extends String>> specialSpecs;
-        public final ModConfigSpec.DoubleValue shinyMultiplier;
+        public final ConfigValue<Integer> shinyCost = new ConfigValue<>("pricing-standard.shinyCost", 200);
+        public final ConfigValue<Integer> abilityCost = new ConfigValue<>("pricing-standard.abilityCost", 100);
+        public final ConfigValue<Integer> hiddenAbilityCost = new ConfigValue<>("pricing-standard.hiddenAbilityCost", 200);
+        public final ConfigValue<Integer> costPerLevel = new ConfigValue<>("pricing-standard.costPerLevel", 10);
+        public final ConfigValue<Integer> evCost = new ConfigValue<>("pricing-standard.evCost", 2);
+        public final ConfigValue<Integer> ivCost = new ConfigValue<>("pricing-standard.ivCost", 10);
+        public final ConfigValue<Integer> natureCost = new ConfigValue<>("pricing-standard.natureCost", 50);
+        public final ConfigValue<Integer> genderCost = new ConfigValue<>("pricing-standard.genderCost", 50);
+        public final ConfigValue<Integer> growthCost = new ConfigValue<>("pricing-standard.growthCost", 50);
+        public final ConfigValue<Integer> ballCost = new ConfigValue<>("pricing-standard.ballCost", 50);
+        public final ConfigValue<Integer> untradeableCost = new ConfigValue<>("pricing-standard.untradeableCost", 50);
+        public final ConfigValue<Integer> unbreedableCost = new ConfigValue<>("pricing-standard.unbreedableCost", 50);
 
+        public final ConfigValue<Integer> shardsShinyCost = new ConfigValue<>("pricing-special.shardsShinyCost", 10);
+        public final ConfigValue<Integer> shardsAbilityCost = new ConfigValue<>("pricing-special.shardsAbilityCost", 5);
+        public final ConfigValue<Integer> shardsHiddenAbilityCost = new ConfigValue<>("pricing-special.shardsHiddenAbilityCost", 8);
+        public final ConfigValue<Integer> shardsCostPerLevel = new ConfigValue<>("pricing-special.shardsCostPerLevel", 2);
+        public final ConfigValue<Integer> shardsEvCost = new ConfigValue<>("pricing-special.shardsEvCost", 1);
+        public final ConfigValue<Integer> shardsIvCost = new ConfigValue<>("pricing-special.shardsIvCost", 2);
+        public final ConfigValue<Integer> shardsNatureCost = new ConfigValue<>("pricing-special.shardsNatureCost", 5);
+        public final ConfigValue<Integer> shardsGenderCost = new ConfigValue<>("pricing-special.shardsGenderCost", 5);
+        public final ConfigValue<Integer> shardsGrowthCost = new ConfigValue<>("pricing-special.shardsGrowthCost", 5);
+        public final ConfigValue<Integer> shardsBallCost = new ConfigValue<>("pricing-special.shardsBallCost", 5);
 
-        public final ModConfigSpec.IntValue shinyCost;
-        public final ModConfigSpec.IntValue abilityCost;
-        public final ModConfigSpec.IntValue hiddenAbilityCost;
-        public final ModConfigSpec.IntValue costPerLevel;
-        public final ModConfigSpec.IntValue evCost;
-        public final ModConfigSpec.IntValue ivCost;
-        public final ModConfigSpec.IntValue natureCost;
-        public final ModConfigSpec.IntValue genderCost;
-        public final ModConfigSpec.IntValue growthCost;
-        public final ModConfigSpec.IntValue ballCost;
-        public final ModConfigSpec.IntValue untradeableCost;
-        public final ModConfigSpec.IntValue unbreedableCost;
+        public final ConfigValue<List<Integer>> partySlots = new ConfigValue<>("ui-layout.partySlots", List.of(10, 11, 12, 14, 15, 16));
+        public final ConfigValue<Integer> infoSlot = new ConfigValue<>("ui-layout.infoSlot", 4);
+        public final ConfigValue<String> infoMaterial = new ConfigValue<>("ui-layout.infoMaterial", "minecraft:book");
+        public final ConfigValue<String> infoName = new ConfigValue<>("ui-layout.infoName", "§e§lInformation");
+        public final ConfigValue<List<String>> infoLore = new ConfigValue<>("ui-layout.infoLore", List.of("§7Welcome to UltimatePokeBuilder!", "§7Select a Pokemon to edit its stats.", " ", "§7Tokens: §e%coinsengine_balance_tokens%", "§7Shards: §d%coinsengine_balance_shards%"));
 
-        public final ModConfigSpec.IntValue mythicShinyCost;
-        public final ModConfigSpec.IntValue mythicAbilityCost;
-        public final ModConfigSpec.IntValue mythicHiddenAbilityCost;
-        public final ModConfigSpec.IntValue mythicCostPerLevel;
-        public final ModConfigSpec.IntValue mythicEvCost;
-        public final ModConfigSpec.IntValue mythicIvCost;
-        public final ModConfigSpec.IntValue mythicNatureCost;
-        public final ModConfigSpec.IntValue mythicGenderCost;
-        public final ModConfigSpec.IntValue mythicGrowthCost;
-        public final ModConfigSpec.IntValue mythicBallCost;
+        public final ConfigValue<Integer> slotPokemon = new ConfigValue<>("ui-layout.slotPokemon", 4);
+        public final ConfigValue<Integer> slotShiny = new ConfigValue<>("ui-layout.slotShiny", 19);
+        public final ConfigValue<Integer> slotLevel = new ConfigValue<>("ui-layout.slotLevel", 20);
+        public final ConfigValue<Integer> slotAbility = new ConfigValue<>("ui-layout.slotAbility", 21);
+        public final ConfigValue<Integer> slotNature = new ConfigValue<>("ui-layout.slotNature", 22);
+        public final ConfigValue<Integer> slotGrowth = new ConfigValue<>("ui-layout.slotGrowth", 23);
+        public final ConfigValue<Integer> slotGender = new ConfigValue<>("ui-layout.slotGender", 24);
+        public final ConfigValue<Integer> slotBall = new ConfigValue<>("ui-layout.slotBall", 25);
+        public final ConfigValue<Integer> slotEvs = new ConfigValue<>("ui-layout.slotEvs", 29);
+        public final ConfigValue<Integer> slotIvs = new ConfigValue<>("ui-layout.slotIvs", 30);
+        public final ConfigValue<Integer> slotUntradeable = new ConfigValue<>("ui-layout.slotUntradeable", 32);
+        public final ConfigValue<Integer> slotUnbreedable = new ConfigValue<>("ui-layout.slotUnbreedable", 33);
+        public final ConfigValue<Integer> slotBack = new ConfigValue<>("ui-layout.slotBack", 49);
 
-        public final ModConfigSpec.IntValue shardsShinyCost;
-        public final ModConfigSpec.IntValue shardsAbilityCost;
-        public final ModConfigSpec.IntValue shardsHiddenAbilityCost;
-        public final ModConfigSpec.IntValue shardsCostPerLevel;
-        public final ModConfigSpec.IntValue shardsEvCost;
-        public final ModConfigSpec.IntValue shardsIvCost;
-        public final ModConfigSpec.IntValue shardsNatureCost;
-        public final ModConfigSpec.IntValue shardsGenderCost;
-        public final ModConfigSpec.IntValue shardsGrowthCost;
-        public final ModConfigSpec.IntValue shardsBallCost;
+        public void reload() {
+            currencyStandard.update(); currencySpecial.update();
+            ecoTakeCmdStandard.update(); ecoTakeCmdSpecial.update();
+            ecoCheckPapiStandard.update(); ecoCheckPapiSpecial.update();
 
+            webhookTokens.update(); webhookShards.update(); blacklistSpecs.update(); specialSpecs.update(); shinyMultiplier.update();
 
-        public final ModConfigSpec.ConfigValue<List<? extends Integer>> partySlots;
-        public final ModConfigSpec.IntValue infoSlot;
-        public final ModConfigSpec.ConfigValue<String> infoMaterial;
-        public final ModConfigSpec.ConfigValue<String> infoName;
-        public final ModConfigSpec.ConfigValue<List<? extends String>> infoLore;
+            shinyCost.update(); abilityCost.update(); hiddenAbilityCost.update(); costPerLevel.update();
+            evCost.update(); ivCost.update(); natureCost.update(); genderCost.update(); growthCost.update();
+            ballCost.update(); untradeableCost.update(); unbreedableCost.update();
 
-        public final ModConfigSpec.IntValue slotPokemon;
-        public final ModConfigSpec.IntValue slotShiny;
-        public final ModConfigSpec.IntValue slotLevel;
-        public final ModConfigSpec.IntValue slotAbility;
-        public final ModConfigSpec.IntValue slotNature;
-        public final ModConfigSpec.IntValue slotGrowth;
-        public final ModConfigSpec.IntValue slotGender;
-        public final ModConfigSpec.IntValue slotBall;
-        public final ModConfigSpec.IntValue slotEvs;
-        public final ModConfigSpec.IntValue slotIvs;
-        public final ModConfigSpec.IntValue slotUntradeable;
-        public final ModConfigSpec.IntValue slotUnbreedable;
-        public final ModConfigSpec.IntValue slotBack;
+            shardsShinyCost.update(); shardsAbilityCost.update(); shardsHiddenAbilityCost.update(); shardsCostPerLevel.update();
+            shardsEvCost.update(); shardsIvCost.update(); shardsNatureCost.update(); shardsGenderCost.update(); shardsGrowthCost.update(); shardsBallCost.update();
 
-        public Server(ModConfigSpec.Builder builder) {
-            builder.push("Database Setup (CoinsEngine)");
-            useMySQL = builder.define("useMySQL", false);
-            dbHost = builder.define("dbHost", "localhost");
-            dbPort = builder.defineInRange("dbPort", 3306, 1, 65535);
-            dbName = builder.define("dbName", "minecraft");
-            dbUser = builder.define("dbUser", "root");
-            dbPass = builder.define("dbPass", "");
-            dbTable = builder.define("dbTable", "coinsengine_users");
-            currencyStandard = builder.define("currencyStandard", "tokens");
-            currencySpecial = builder.define("currencySpecial", "shards");
-            builder.pop();
-
-            builder.push("Audit Logging (Webhooks)");
-            webhookTokens = builder.comment("URL for Token purchases").define("webhookTokens", "");
-            webhookShards = builder.comment("URL for Shard purchases").define("webhookShards", "");
-            builder.pop();
-
-            builder.push("General Options");
-            blacklistSpecs = builder.defineListAllowEmpty(List.of("blacklistSpecs"), () -> List.of("ditto"), o -> o instanceof String);
-            specialSpecs = builder.defineListAllowEmpty(List.of("specialSpecs"), () -> List.of("palette:special"), o -> o instanceof String);
-            shinyMultiplier = builder.defineInRange("shinyMultiplier", 2.0, 1.0, 100.0);
-            builder.pop();
-
-            builder.push("Standard Pricing (Tokens)");
-            shinyCost = builder.defineInRange("shinyCost", 200, 0, Integer.MAX_VALUE);
-            abilityCost = builder.defineInRange("abilityCost", 100, 0, Integer.MAX_VALUE);
-            hiddenAbilityCost = builder.defineInRange("hiddenAbilityCost", 200, 0, Integer.MAX_VALUE);
-            costPerLevel = builder.defineInRange("costPerLevel", 10, 0, Integer.MAX_VALUE);
-            evCost = builder.defineInRange("evCost", 2, 0, Integer.MAX_VALUE);
-            ivCost = builder.defineInRange("ivCost", 10, 0, Integer.MAX_VALUE);
-            natureCost = builder.defineInRange("natureCost", 50, 0, Integer.MAX_VALUE);
-            genderCost = builder.defineInRange("genderCost", 50, 0, Integer.MAX_VALUE);
-            growthCost = builder.defineInRange("growthCost", 50, 0, Integer.MAX_VALUE);
-            ballCost = builder.defineInRange("ballCost", 50, 0, Integer.MAX_VALUE);
-            untradeableCost = builder.defineInRange("untradeableCost", 50, 0, Integer.MAX_VALUE);
-            unbreedableCost = builder.defineInRange("unbreedableCost", 50, 0, Integer.MAX_VALUE);
-            builder.pop();
-
-            builder.push("Mythic Pricing (Mythic Tokens)");
-            mythicShinyCost = builder.defineInRange("mythicShinyCost", 5, 0, Integer.MAX_VALUE);
-            mythicAbilityCost = builder.defineInRange("mythicAbilityCost", 2, 0, Integer.MAX_VALUE);
-            mythicHiddenAbilityCost = builder.defineInRange("mythicHiddenAbilityCost", 4, 0, Integer.MAX_VALUE);
-            mythicCostPerLevel = builder.defineInRange("mythicCostPerLevel", 1, 0, Integer.MAX_VALUE);
-            mythicEvCost = builder.defineInRange("mythicEvCost", 1, 0, Integer.MAX_VALUE);
-            mythicIvCost = builder.defineInRange("mythicIvCost", 1, 0, Integer.MAX_VALUE);
-            mythicNatureCost = builder.defineInRange("mythicNatureCost", 1, 0, Integer.MAX_VALUE);
-            mythicGenderCost = builder.defineInRange("mythicGenderCost", 1, 0, Integer.MAX_VALUE);
-            mythicGrowthCost = builder.defineInRange("mythicGrowthCost", 1, 0, Integer.MAX_VALUE);
-            mythicBallCost = builder.defineInRange("mythicBallCost", 1, 0, Integer.MAX_VALUE);
-            builder.pop();
-
-            builder.push("Special Pricing (Shards)");
-            shardsShinyCost = builder.defineInRange("shardsShinyCost", 10, 0, Integer.MAX_VALUE);
-            shardsAbilityCost = builder.defineInRange("shardsAbilityCost", 5, 0, Integer.MAX_VALUE);
-            shardsHiddenAbilityCost = builder.defineInRange("shardsHiddenAbilityCost", 8, 0, Integer.MAX_VALUE);
-            shardsCostPerLevel = builder.defineInRange("shardsCostPerLevel", 2, 0, Integer.MAX_VALUE);
-            shardsEvCost = builder.defineInRange("shardsEvCost", 1, 0, Integer.MAX_VALUE);
-            shardsIvCost = builder.defineInRange("shardsIvCost", 2, 0, Integer.MAX_VALUE);
-            shardsNatureCost = builder.defineInRange("shardsNatureCost", 5, 0, Integer.MAX_VALUE);
-            shardsGenderCost = builder.defineInRange("shardsGenderCost", 5, 0, Integer.MAX_VALUE);
-            shardsGrowthCost = builder.defineInRange("shardsGrowthCost", 5, 0, Integer.MAX_VALUE);
-            shardsBallCost = builder.defineInRange("shardsBallCost", 5, 0, Integer.MAX_VALUE);
-            builder.pop();
-
-            builder.push("UI Layout");
-            partySlots = builder.comment("Slots for Party Pokemon 1-6 (0-26)").defineListAllowEmpty(List.of("partySlots"), () -> List.of(10, 11, 12, 14, 15, 16), o -> o instanceof Integer);
-            infoSlot = builder.defineInRange("infoSlot", 4, 0, 53);
-            infoMaterial = builder.define("infoMaterial", "minecraft:book");
-            infoName = builder.define("infoName", "§e§lInformation");
-            infoLore = builder.defineListAllowEmpty(List.of("infoLore"), () -> List.of("§7Welcome to UltimatePokeBuilder!", "§7Select a Pokemon to edit its stats."), o -> o instanceof String);
-
-            slotPokemon = builder.comment("Slot for the Pokemon display icon").defineInRange("slotPokemon", 4, 0, 53);
-            slotShiny = builder.defineInRange("slotShiny", 19, 0, 53);
-            slotLevel = builder.defineInRange("slotLevel", 20, 0, 53);
-            slotAbility = builder.defineInRange("slotAbility", 21, 0, 53);
-            slotNature = builder.defineInRange("slotNature", 22, 0, 53);
-            slotGrowth = builder.defineInRange("slotGrowth", 23, 0, 53);
-            slotGender = builder.defineInRange("slotGender", 24, 0, 53);
-            slotBall = builder.defineInRange("slotBall", 25, 0, 53);
-            slotEvs = builder.defineInRange("slotEvs", 29, 0, 53);
-            slotIvs = builder.defineInRange("slotIvs", 30, 0, 53);
-            slotUntradeable = builder.defineInRange("slotUntradeable", 32, 0, 53);
-            slotUnbreedable = builder.defineInRange("slotUnbreedable", 33, 0, 53);
-            slotBack = builder.defineInRange("slotBack", 49, 0, 53);
-            builder.pop();
+            partySlots.update(); infoSlot.update(); infoMaterial.update(); infoName.update(); infoLore.update();
+            slotPokemon.update(); slotShiny.update(); slotLevel.update(); slotAbility.update(); slotNature.update();
+            slotGrowth.update(); slotGender.update(); slotBall.update(); slotEvs.update(); slotIvs.update();
+            slotUntradeable.update(); slotUnbreedable.update(); slotBack.update();
         }
     }
 }

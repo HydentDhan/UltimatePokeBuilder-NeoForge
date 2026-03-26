@@ -23,7 +23,6 @@ public class UltimatePokeBuilder {
     public UltimatePokeBuilder(IEventBus modEventBus, ModContainer modContainer) {
         instance = this;
 
-        modContainer.registerConfig(ModConfig.Type.SERVER, Config.SERVER_SPEC, "UltimatePokeBuilder/config.toml");
         modContainer.registerConfig(ModConfig.Type.SERVER, MessagesConfig.SPEC, "UltimatePokeBuilder/messages.toml");
 
         modEventBus.addListener(this::commonSetup);
@@ -32,6 +31,7 @@ public class UltimatePokeBuilder {
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
+        Config.loadConfig(net.neoforged.fml.loading.FMLPaths.CONFIGDIR.get().toFile());
         LOGGER.info("UltimatePokeBuilder Core Initialized.");
     }
 
