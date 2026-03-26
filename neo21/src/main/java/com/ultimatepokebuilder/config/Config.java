@@ -23,12 +23,11 @@ public class Config {
         public final ModConfigSpec.ConfigValue<String> dbPass;
         public final ModConfigSpec.ConfigValue<String> dbTable;
 
+        public final ModConfigSpec.ConfigValue<String> currencyStandard;
+        public final ModConfigSpec.ConfigValue<String> currencySpecial;
 
         public final ModConfigSpec.ConfigValue<String> webhookTokens;
         public final ModConfigSpec.ConfigValue<String> webhookShards;
-
-        public final ModConfigSpec.ConfigValue<String> currencyStandard;
-        public final ModConfigSpec.ConfigValue<String> currencySpecial;
 
         public final ModConfigSpec.ConfigValue<List<? extends String>> blacklistSpecs;
         public final ModConfigSpec.ConfigValue<List<? extends String>> specialSpecs;
@@ -48,8 +47,6 @@ public class Config {
         public final ModConfigSpec.IntValue untradeableCost;
         public final ModConfigSpec.IntValue unbreedableCost;
 
-
-
         public final ModConfigSpec.IntValue mythicShinyCost;
         public final ModConfigSpec.IntValue mythicAbilityCost;
         public final ModConfigSpec.IntValue mythicHiddenAbilityCost;
@@ -60,7 +57,6 @@ public class Config {
         public final ModConfigSpec.IntValue mythicGenderCost;
         public final ModConfigSpec.IntValue mythicGrowthCost;
         public final ModConfigSpec.IntValue mythicBallCost;
-
 
         public final ModConfigSpec.IntValue shardsShinyCost;
         public final ModConfigSpec.IntValue shardsAbilityCost;
@@ -73,6 +69,27 @@ public class Config {
         public final ModConfigSpec.IntValue shardsGrowthCost;
         public final ModConfigSpec.IntValue shardsBallCost;
 
+
+        public final ModConfigSpec.ConfigValue<List<? extends Integer>> partySlots;
+        public final ModConfigSpec.IntValue infoSlot;
+        public final ModConfigSpec.ConfigValue<String> infoMaterial;
+        public final ModConfigSpec.ConfigValue<String> infoName;
+        public final ModConfigSpec.ConfigValue<List<? extends String>> infoLore;
+
+        public final ModConfigSpec.IntValue slotPokemon;
+        public final ModConfigSpec.IntValue slotShiny;
+        public final ModConfigSpec.IntValue slotLevel;
+        public final ModConfigSpec.IntValue slotAbility;
+        public final ModConfigSpec.IntValue slotNature;
+        public final ModConfigSpec.IntValue slotGrowth;
+        public final ModConfigSpec.IntValue slotGender;
+        public final ModConfigSpec.IntValue slotBall;
+        public final ModConfigSpec.IntValue slotEvs;
+        public final ModConfigSpec.IntValue slotIvs;
+        public final ModConfigSpec.IntValue slotUntradeable;
+        public final ModConfigSpec.IntValue slotUnbreedable;
+        public final ModConfigSpec.IntValue slotBack;
+
         public Server(ModConfigSpec.Builder builder) {
             builder.push("Database Setup (CoinsEngine)");
             useMySQL = builder.define("useMySQL", false);
@@ -80,17 +97,15 @@ public class Config {
             dbPort = builder.defineInRange("dbPort", 3306, 1, 65535);
             dbName = builder.define("dbName", "minecraft");
             dbUser = builder.define("dbUser", "root");
-            dbPass = builder.define("dbPass", "password");
-            dbTable = builder.define("dbTable", "coinsengine_balances");
-
+            dbPass = builder.define("dbPass", "");
+            dbTable = builder.define("dbTable", "coinsengine_users");
             currencyStandard = builder.define("currencyStandard", "tokens");
             currencySpecial = builder.define("currencySpecial", "shards");
             builder.pop();
 
-
             builder.push("Audit Logging (Webhooks)");
-            webhookTokens = builder.comment("Discord Webhook URL for Standard Token purchases").define("webhookTokens", "");
-            webhookShards = builder.comment("Discord Webhook URL for Mythic/Special Shard purchases").define("webhookShards", "");
+            webhookTokens = builder.comment("URL for Token purchases").define("webhookTokens", "");
+            webhookShards = builder.comment("URL for Shard purchases").define("webhookShards", "");
             builder.pop();
 
             builder.push("General Options");
@@ -104,8 +119,8 @@ public class Config {
             abilityCost = builder.defineInRange("abilityCost", 100, 0, Integer.MAX_VALUE);
             hiddenAbilityCost = builder.defineInRange("hiddenAbilityCost", 200, 0, Integer.MAX_VALUE);
             costPerLevel = builder.defineInRange("costPerLevel", 10, 0, Integer.MAX_VALUE);
-            evCost = builder.defineInRange("evCost", 100, 0, Integer.MAX_VALUE);
-            ivCost = builder.defineInRange("ivCost", 100, 0, Integer.MAX_VALUE);
+            evCost = builder.defineInRange("evCost", 2, 0, Integer.MAX_VALUE);
+            ivCost = builder.defineInRange("ivCost", 10, 0, Integer.MAX_VALUE);
             natureCost = builder.defineInRange("natureCost", 50, 0, Integer.MAX_VALUE);
             genderCost = builder.defineInRange("genderCost", 50, 0, Integer.MAX_VALUE);
             growthCost = builder.defineInRange("growthCost", 50, 0, Integer.MAX_VALUE);
@@ -132,12 +147,34 @@ public class Config {
             shardsAbilityCost = builder.defineInRange("shardsAbilityCost", 5, 0, Integer.MAX_VALUE);
             shardsHiddenAbilityCost = builder.defineInRange("shardsHiddenAbilityCost", 8, 0, Integer.MAX_VALUE);
             shardsCostPerLevel = builder.defineInRange("shardsCostPerLevel", 2, 0, Integer.MAX_VALUE);
-            shardsEvCost = builder.defineInRange("shardsEvCost", 2, 0, Integer.MAX_VALUE);
+            shardsEvCost = builder.defineInRange("shardsEvCost", 1, 0, Integer.MAX_VALUE);
             shardsIvCost = builder.defineInRange("shardsIvCost", 2, 0, Integer.MAX_VALUE);
             shardsNatureCost = builder.defineInRange("shardsNatureCost", 5, 0, Integer.MAX_VALUE);
             shardsGenderCost = builder.defineInRange("shardsGenderCost", 5, 0, Integer.MAX_VALUE);
             shardsGrowthCost = builder.defineInRange("shardsGrowthCost", 5, 0, Integer.MAX_VALUE);
             shardsBallCost = builder.defineInRange("shardsBallCost", 5, 0, Integer.MAX_VALUE);
+            builder.pop();
+
+            builder.push("UI Layout");
+            partySlots = builder.comment("Slots for Party Pokemon 1-6 (0-26)").defineListAllowEmpty(List.of("partySlots"), () -> List.of(10, 11, 12, 14, 15, 16), o -> o instanceof Integer);
+            infoSlot = builder.defineInRange("infoSlot", 4, 0, 53);
+            infoMaterial = builder.define("infoMaterial", "minecraft:book");
+            infoName = builder.define("infoName", "§e§lInformation");
+            infoLore = builder.defineListAllowEmpty(List.of("infoLore"), () -> List.of("§7Welcome to UltimatePokeBuilder!", "§7Select a Pokemon to edit its stats."), o -> o instanceof String);
+
+            slotPokemon = builder.comment("Slot for the Pokemon display icon").defineInRange("slotPokemon", 4, 0, 53);
+            slotShiny = builder.defineInRange("slotShiny", 19, 0, 53);
+            slotLevel = builder.defineInRange("slotLevel", 20, 0, 53);
+            slotAbility = builder.defineInRange("slotAbility", 21, 0, 53);
+            slotNature = builder.defineInRange("slotNature", 22, 0, 53);
+            slotGrowth = builder.defineInRange("slotGrowth", 23, 0, 53);
+            slotGender = builder.defineInRange("slotGender", 24, 0, 53);
+            slotBall = builder.defineInRange("slotBall", 25, 0, 53);
+            slotEvs = builder.defineInRange("slotEvs", 29, 0, 53);
+            slotIvs = builder.defineInRange("slotIvs", 30, 0, 53);
+            slotUntradeable = builder.defineInRange("slotUntradeable", 32, 0, 53);
+            slotUnbreedable = builder.defineInRange("slotUnbreedable", 33, 0, 53);
+            slotBack = builder.defineInRange("slotBack", 49, 0, 53);
             builder.pop();
         }
     }
