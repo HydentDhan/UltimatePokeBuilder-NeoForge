@@ -33,7 +33,6 @@ public class CoinsEngineHook {
 
     public static int getBalance(ServerPlayer sp, String currency) {
         try {
-
             boolean isSpecial = currency.equals(Config.SERVER.currencySpecial.get());
             String papiTag = isSpecial ? Config.SERVER.ecoCheckPapiSpecial.get() : Config.SERVER.ecoCheckPapiStandard.get();
 
@@ -56,7 +55,6 @@ public class CoinsEngineHook {
     public static boolean takeBalance(ServerPlayer sp, String currency, int amount) {
         if (getBalance(sp, currency) < amount) return false;
 
-
         boolean isSpecial = currency.equals(Config.SERVER.currencySpecial.get());
         String cmdTemplate = isSpecial ? Config.SERVER.ecoTakeCmdSpecial.get() : Config.SERVER.ecoTakeCmdStandard.get();
 
@@ -64,7 +62,8 @@ public class CoinsEngineHook {
                 .replace("%player%", sp.getGameProfile().getName())
                 .replace("%amount%", String.valueOf(amount));
 
-        sp.server.getCommands().performPrefixedCommand(sp.server.createCommandSourceStack(), cmd);
+
+        sp.server.getCommands().performPrefixedCommand(sp.server.createCommandSourceStack().withSuppressedOutput(), cmd);
         return true;
     }
 }

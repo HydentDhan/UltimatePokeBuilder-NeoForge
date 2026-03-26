@@ -89,7 +89,6 @@ public class Config {
     }
 
     public static class Server {
-        // --- Separated Economy Variables ---
         public final ConfigValue<String> currencyStandard = new ConfigValue<>("economy-integration.currencyStandard", "tokens");
         public final ConfigValue<String> currencySpecial = new ConfigValue<>("economy-integration.currencySpecial", "shards");
         public final ConfigValue<String> ecoTakeCmdStandard = new ConfigValue<>("economy-integration.ecoTakeCmdStandard", "tokens take %player% %amount%");
@@ -116,6 +115,10 @@ public class Config {
         public final ConfigValue<Integer> ballCost = new ConfigValue<>("pricing-standard.ballCost", 50);
         public final ConfigValue<Integer> untradeableCost = new ConfigValue<>("pricing-standard.untradeableCost", 50);
         public final ConfigValue<Integer> unbreedableCost = new ConfigValue<>("pricing-standard.unbreedableCost", 50);
+
+        // --- Added Missing Rename Variables ---
+        public final ConfigValue<Integer> renameCost = new ConfigValue<>("pricing-standard.renameCost", 100);
+        public final ConfigValue<Integer> shardsRenameCost = new ConfigValue<>("pricing-special.shardsRenameCost", 5);
 
         public final ConfigValue<Integer> shardsShinyCost = new ConfigValue<>("pricing-special.shardsShinyCost", 10);
         public final ConfigValue<Integer> shardsAbilityCost = new ConfigValue<>("pricing-special.shardsAbilityCost", 5);
@@ -144,6 +147,10 @@ public class Config {
         public final ConfigValue<Integer> slotBall = new ConfigValue<>("ui-layout.slotBall", 25);
         public final ConfigValue<Integer> slotEvs = new ConfigValue<>("ui-layout.slotEvs", 29);
         public final ConfigValue<Integer> slotIvs = new ConfigValue<>("ui-layout.slotIvs", 30);
+
+        // --- Added Missing Rename UI Slot ---
+        public final ConfigValue<Integer> slotRename = new ConfigValue<>("ui-layout.slotRename", 31);
+
         public final ConfigValue<Integer> slotUntradeable = new ConfigValue<>("ui-layout.slotUntradeable", 32);
         public final ConfigValue<Integer> slotUnbreedable = new ConfigValue<>("ui-layout.slotUnbreedable", 33);
         public final ConfigValue<Integer> slotBack = new ConfigValue<>("ui-layout.slotBack", 49);
@@ -157,15 +164,15 @@ public class Config {
 
             shinyCost.update(); abilityCost.update(); hiddenAbilityCost.update(); costPerLevel.update();
             evCost.update(); ivCost.update(); natureCost.update(); genderCost.update(); growthCost.update();
-            ballCost.update(); untradeableCost.update(); unbreedableCost.update();
+            ballCost.update(); untradeableCost.update(); unbreedableCost.update(); renameCost.update();
 
             shardsShinyCost.update(); shardsAbilityCost.update(); shardsHiddenAbilityCost.update(); shardsCostPerLevel.update();
-            shardsEvCost.update(); shardsIvCost.update(); shardsNatureCost.update(); shardsGenderCost.update(); shardsGrowthCost.update(); shardsBallCost.update();
+            shardsEvCost.update(); shardsIvCost.update(); shardsNatureCost.update(); shardsGenderCost.update(); shardsGrowthCost.update(); shardsBallCost.update(); shardsRenameCost.update();
 
             partySlots.update(); infoSlot.update(); infoMaterial.update(); infoName.update(); infoLore.update();
             slotPokemon.update(); slotShiny.update(); slotLevel.update(); slotAbility.update(); slotNature.update();
             slotGrowth.update(); slotGender.update(); slotBall.update(); slotEvs.update(); slotIvs.update();
-            slotUntradeable.update(); slotUnbreedable.update(); slotBack.update();
+            slotRename.update(); slotUntradeable.update(); slotUnbreedable.update(); slotBack.update();
         }
     }
 }

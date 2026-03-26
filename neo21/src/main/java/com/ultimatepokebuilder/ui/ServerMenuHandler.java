@@ -27,11 +27,82 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemLore;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.ServerChatEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.UUID;
 
 public class ServerMenuHandler {
+
+    public static final Map<UUID, Integer> activeRenames = new HashMap<>();
+
+    // --- BUG FIX: Memory Leak Prevention ---
+    // Instantly clears the player from the rename list if they quit the game!
+    @SubscribeEvent
+    public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        activeRenames.remove(event.getEntity().getUUID());
+    }
+
+    public static Component parseHexName(String input) {
+        input = input.replace("&", "§");
+
+        if (!input.contains("&#")) return Component.literal(input);
+
+        net.minecraft.network.chat.MutableComponent result = Component.empty();
+        String[] parts = input.split("(?=&#)");
+
+        for (String part : parts) {
+            if (part.startsWith("&#") && part.length() >= 8) {
+                String hex = "#" + part.substring(2, 8);
+                String text = part.substring(8);
+                try {
+                    net.minecraft.network.chat.TextColor color = net.minecraft.network.chat.TextColor.parseColor(hex).getOrThrow();
+                    result.append(Component.literal(text).withStyle(net.minecraft.network.chat.Style.EMPTY.withColor(color)));
+                } catch (Exception e) {
+                    result.append(Component.literal(part));
+                }
+            } else {
+                result.append(Component.literal(part));
+            }
+        }
+        return result;
+    }
+
+    @SubscribeEvent
+    public static void onPlayerChat(ServerChatEvent event) {
+        ServerPlayer sp = event.getPlayer();
+        if (activeRenames.containsKey(sp.getUUID())) {
+            event.setCanceled(true);
+            int pSlot = activeRenames.remove(sp.getUUID());
+            String input = event.getMessage().getString();
+
+            if (input.equalsIgnoreCase("cancel")) {
+                sp.sendSystemMessage(Component.literal("§cRename cancelled."));
+                sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), Component.literal("Builder"))));
+                return;
+            }
+
+            Pokemon pkmn = StorageProxy.getPartyNow(sp).get(pSlot);
+            if (pkmn == null) return;
+
+            String cur = getCurrency(pkmn);
+            int cost = getCost("rename", pkmn, cur);
+
+            if (CoinsEngineHook.takeBalance(sp, cur, cost)) {
+                pkmn.setNickname(parseHexName(input));
+                triggerSuccess(sp, pkmn, "rename", cost, cur);
+            } else {
+                triggerFail(sp, cur);
+            }
+
+            sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), Component.literal("Builder"))));
+        }
+    }
 
     private static ItemStack getFiller() {
         ItemStack item = new ItemStack(Items.GRAY_STAINED_GLASS_PANE);
@@ -115,6 +186,7 @@ public class ServerMenuHandler {
             case "ball": base = isShards ? Config.SERVER.shardsBallCost.get() : Config.SERVER.ballCost.get(); break;
             case "untradeable": base = Config.SERVER.untradeableCost.get(); break;
             case "unbreedable": base = Config.SERVER.unbreedableCost.get(); break;
+            case "rename": base = isShards ? Config.SERVER.shardsRenameCost.get() : Config.SERVER.renameCost.get(); break;
         }
         return pkmn.isShiny() && !type.equals("shiny") ? (int)(base * Config.SERVER.shinyMultiplier.get()) : base;
     }
@@ -168,7 +240,6 @@ public class ServerMenuHandler {
                 Pokemon pkmn = StorageProxy.getPartyNow(sp).get(i);
                 if (pkmn != null) {
 
-                    // --- NEW: Extended UI Data Parsing ---
                     String growthName = pkmn.getGrowth().unwrapKey().map(k -> k.location().getPath()).orElse("ordinary");
                     growthName = growthName.substring(0, 1).toUpperCase() + growthName.substring(1);
                     String ballName = pkmn.getBall().toString().replace("pixelmon:", "").replace("_", " ");
@@ -229,7 +300,6 @@ public class ServerMenuHandler {
             if (pkmn == null) return;
             String cur = getCurrency(pkmn);
 
-            // --- NEW: Extended UI Data Parsing ---
             String growthName = pkmn.getGrowth().unwrapKey().map(k -> k.location().getPath()).orElse("ordinary");
             growthName = growthName.substring(0, 1).toUpperCase() + growthName.substring(1);
             String ballName = pkmn.getBall().toString().replace("pixelmon:", "").replace("_", " ");
@@ -294,6 +364,8 @@ public class ServerMenuHandler {
             getContainer().setItem(Config.SERVER.slotEvs.get(), createBtn("pixelmon:hp_up", "§cAdjust EVs", "§7Cost per EV: " + getCost("ev", pkmn, cur)));
             getContainer().setItem(Config.SERVER.slotIvs.get(), createBtn("pixelmon:calcium", "§aAdjust IVs", "§7Cost per IV: " + getCost("iv", pkmn, cur)));
 
+            getContainer().setItem(Config.SERVER.slotRename.get(), createBtn("minecraft:name_tag", "§eRename Pokémon", "§7Cost: " + getCost("rename", pkmn, cur) + "\n§7Supports Hex Codes (e.g. &#FF0000)"));
+
             getContainer().setItem(Config.SERVER.slotBack.get(), createBtn("minecraft:arrow", "§cBack to Party", null));
         }
 
@@ -317,6 +389,16 @@ public class ServerMenuHandler {
             if (slot == Config.SERVER.slotShiny.get()) openConfirm(sp, pSlot, pkmn.isShiny() ? "unshiny" : "shiny", getCost("shiny", pkmn, cur), cur);
             if (slot == Config.SERVER.slotUntradeable.get()) openConfirm(sp, pSlot, pkmn.hasFlag(Flags.UNTRADEABLE) ? "tradeable" : "untradeable", getCost("untradeable", pkmn, cur), cur);
             if (slot == Config.SERVER.slotUnbreedable.get()) openConfirm(sp, pSlot, pkmn.hasFlag(Flags.UNBREEDABLE) ? "breedable" : "unbreedable", getCost("unbreedable", pkmn, cur), cur);
+
+            if (slot == Config.SERVER.slotRename.get()) {
+                sp.closeContainer();
+                activeRenames.put(sp.getUUID(), pSlot);
+                sp.sendSystemMessage(Component.literal("§e========================================"));
+                sp.sendSystemMessage(Component.literal("§bPlease type the new name for your Pokémon in chat!"));
+                sp.sendSystemMessage(Component.literal("§7(Supports standard §a&a §7and hex §d&#FF0000§7)"));
+                sp.sendSystemMessage(Component.literal("§cType 'cancel' to abort."));
+                sp.sendSystemMessage(Component.literal("§e========================================"));
+            }
         }
         @Override public boolean stillValid(Player p) { return true; }
     }
@@ -646,16 +728,22 @@ public class ServerMenuHandler {
                         else if (action.startsWith("ability:")) pkmn.setAbilitySlot(Integer.parseInt(action.split(":")[1]));
                         else if (action.startsWith("growth:")) {
                             String targetGrowth = action.split(":")[1].toLowerCase();
-                            boolean applied = false;
-                            for (com.pixelmonmod.pixelmon.api.pokemon.growth.Growth g : com.pixelmonmod.pixelmon.api.util.helpers.RegistryHelper.getAll(com.pixelmonmod.pixelmon.init.registry.PixelmonRegistry.GROWTH_REGISTRY)) {
-                                if (g.getName().getString().toLowerCase().contains(targetGrowth)) {
-                                    pkmn.setGrowth(net.minecraft.core.Holder.direct(g));
-                                    applied = true;
-                                    break;
-                                }
-                            }
-                            if (!applied) {
-                                PokemonSpecificationProxy.create(action).get().apply(pkmn);
+                            net.minecraft.resources.ResourceLocation rl = net.minecraft.resources.ResourceLocation.parse("pixelmon:" + targetGrowth);
+
+                            net.minecraft.core.Holder<com.pixelmonmod.pixelmon.api.pokemon.growth.Growth> growthHolder =
+                                    com.pixelmonmod.pixelmon.api.util.helpers.RegistryHelper.getHolder(com.pixelmonmod.pixelmon.init.registry.PixelmonRegistry.GROWTH_REGISTRY, rl);
+
+                            if (growthHolder != null && growthHolder.isBound()) {
+                                pkmn.setGrowth(growthHolder);
+                            } else {
+                                // BUG FIX: Refunding logic now uses the suppressed output flag so it doesn't spam the server log!
+                                sp.sendSystemMessage(Component.literal("§cGrowth '" + targetGrowth + "' could not be found in the 1.21.1 registry! Refunding..."));
+                                String refundCmd = (cur.equals(Config.SERVER.currencySpecial.get()) ? Config.SERVER.ecoTakeCmdSpecial.get() : Config.SERVER.ecoTakeCmdStandard.get())
+                                        .replace("take", "give").replace("remove", "give")
+                                        .replace("%player%", sp.getGameProfile().getName())
+                                        .replace("%amount%", String.valueOf(finalCost));
+                                sp.server.getCommands().performPrefixedCommand(sp.server.createCommandSourceStack().withSuppressedOutput(), refundCmd);
+                                return;
                             }
                         }
                         else if (action.startsWith("nature:")) PokemonSpecificationProxy.create(action).get().apply(pkmn);
