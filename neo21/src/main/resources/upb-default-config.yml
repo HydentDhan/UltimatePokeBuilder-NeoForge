@@ -43,6 +43,8 @@ pricing-special:
   shardsGenderCost: 5
   shardsGrowthCost: 5
   shardsBallCost: 5
+  shardsUntradeableCost: 50
+  shardsUnbreedableCost: 50
 
 ui-layout:
   partySlots:

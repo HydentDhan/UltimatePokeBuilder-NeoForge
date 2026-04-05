@@ -13,22 +13,22 @@ public class Config {
     public static final Server SERVER = new Server();
 
     public static void loadConfig(File configDir) {
-        File configFile = new File(configDir, "UltimatePokeBuilder/config.yml");
+        File configFile = new File(configDir, "UltimatePokeBuilder/upb-default-config.yml");
 
         if (!configFile.getParentFile().exists()) {
             configFile.getParentFile().mkdirs();
         }
 
         if (!configFile.exists()) {
-            try (InputStream in = Config.class.getResourceAsStream("/config.yml")) {
+            try (InputStream in = Config.class.getResourceAsStream("/upb-default-config.yml")) {
                 if (in != null) {
                     Files.copy(in, configFile.toPath());
                 } else {
-                    UltimatePokeBuilder.LOGGER.error("Default config.yml not found in resources folder!");
+                    UltimatePokeBuilder.LOGGER.error("Default upb-default-config.yml not found in resources folder!");
                     configFile.createNewFile();
                 }
             } catch (IOException e) {
-                UltimatePokeBuilder.LOGGER.error("Failed to generate default config.yml", e);
+                UltimatePokeBuilder.LOGGER.error("Failed to generate default upb-default-config.yml", e);
             }
         }
 
@@ -37,7 +37,7 @@ public class Config {
             data = yaml.load(in);
             SERVER.reload();
         } catch (Exception e) {
-            UltimatePokeBuilder.LOGGER.error("Failed to load config.yml. Make sure formatting is correct!", e);
+            UltimatePokeBuilder.LOGGER.error("Failed to load upb-default-config.yml. Make sure formatting is correct!", e);
         }
     }
 
@@ -116,7 +116,6 @@ public class Config {
         public final ConfigValue<Integer> untradeableCost = new ConfigValue<>("pricing-standard.untradeableCost", 50);
         public final ConfigValue<Integer> unbreedableCost = new ConfigValue<>("pricing-standard.unbreedableCost", 50);
 
-        // --- Added Missing Rename Variables ---
         public final ConfigValue<Integer> renameCost = new ConfigValue<>("pricing-standard.renameCost", 100);
         public final ConfigValue<Integer> shardsRenameCost = new ConfigValue<>("pricing-special.shardsRenameCost", 5);
 
@@ -130,6 +129,8 @@ public class Config {
         public final ConfigValue<Integer> shardsGenderCost = new ConfigValue<>("pricing-special.shardsGenderCost", 5);
         public final ConfigValue<Integer> shardsGrowthCost = new ConfigValue<>("pricing-special.shardsGrowthCost", 5);
         public final ConfigValue<Integer> shardsBallCost = new ConfigValue<>("pricing-special.shardsBallCost", 5);
+        public final ConfigValue<Integer> shardsUntradeableCost = new ConfigValue<>("pricing-special.shardsUntradeableCost", 50);
+        public final ConfigValue<Integer> shardsUnbreedableCost = new ConfigValue<>("pricing-special.shardsUnbreedableCost", 50);
 
         public final ConfigValue<List<Integer>> partySlots = new ConfigValue<>("ui-layout.partySlots", List.of(10, 11, 12, 14, 15, 16));
         public final ConfigValue<Integer> infoSlot = new ConfigValue<>("ui-layout.infoSlot", 4);
@@ -148,7 +149,6 @@ public class Config {
         public final ConfigValue<Integer> slotEvs = new ConfigValue<>("ui-layout.slotEvs", 29);
         public final ConfigValue<Integer> slotIvs = new ConfigValue<>("ui-layout.slotIvs", 30);
 
-        // --- Added Missing Rename UI Slot ---
         public final ConfigValue<Integer> slotRename = new ConfigValue<>("ui-layout.slotRename", 31);
 
         public final ConfigValue<Integer> slotUntradeable = new ConfigValue<>("ui-layout.slotUntradeable", 32);
@@ -168,6 +168,7 @@ public class Config {
 
             shardsShinyCost.update(); shardsAbilityCost.update(); shardsHiddenAbilityCost.update(); shardsCostPerLevel.update();
             shardsEvCost.update(); shardsIvCost.update(); shardsNatureCost.update(); shardsGenderCost.update(); shardsGrowthCost.update(); shardsBallCost.update(); shardsRenameCost.update();
+            shardsUntradeableCost.update(); shardsUnbreedableCost.update();
 
             partySlots.update(); infoSlot.update(); infoMaterial.update(); infoName.update(); infoLore.update();
             slotPokemon.update(); slotShiny.update(); slotLevel.update(); slotAbility.update(); slotNature.update();

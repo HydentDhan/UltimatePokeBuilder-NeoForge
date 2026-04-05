@@ -6,6 +6,7 @@ import com.pixelmonmod.pixelmon.api.pokemon.Pokemon;
 import com.pixelmonmod.pixelmon.api.pokemon.stats.BattleStatsType;
 import com.pixelmonmod.pixelmon.api.storage.StorageProxy;
 import com.pixelmonmod.pixelmon.api.util.helpers.SpriteItemHelper;
+import com.pixelmonmod.pixelmon.api.pokemon.species.gender.Gender;
 import com.ultimatepokebuilder.UltimatePokeBuilder;
 import com.ultimatepokebuilder.config.Config;
 import com.ultimatepokebuilder.util.CoinsEngineHook;
@@ -30,6 +31,7 @@ import net.minecraft.world.item.component.ItemLore;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.ServerChatEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,17 +43,22 @@ public class ServerMenuHandler {
 
     public static final Map<UUID, Integer> activeRenames = new HashMap<>();
 
-    // --- BUG FIX: Memory Leak Prevention ---
-    // Instantly clears the player from the rename list if they quit the game!
     @SubscribeEvent
     public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         activeRenames.remove(event.getEntity().getUUID());
     }
 
-    public static Component parseHexName(String input) {
-        input = input.replace("&", "§");
+    @SubscribeEvent
+    public static void onEntityJoin(EntityJoinLevelEvent event) {
+        if (event.getEntity() instanceof com.pixelmonmod.pixelmon.entities.pixelmon.PixelmonEntity pixelmon) {
+            if (pixelmon.getPokemon() != null && pixelmon.getPokemon().hasNickname()) {
+                pixelmon.setCustomNameVisible(true);
+            }
+        }
+    }
 
-        if (!input.contains("&#")) return Component.literal(input);
+    public static Component parseHexName(String input) {
+        if (!input.contains("&#")) return Component.literal(input.replace("&", "§"));
 
         net.minecraft.network.chat.MutableComponent result = Component.empty();
         String[] parts = input.split("(?=&#)");
@@ -59,15 +66,15 @@ public class ServerMenuHandler {
         for (String part : parts) {
             if (part.startsWith("&#") && part.length() >= 8) {
                 String hex = "#" + part.substring(2, 8);
-                String text = part.substring(8);
+                String text = part.substring(8).replace("&", "§");
                 try {
                     net.minecraft.network.chat.TextColor color = net.minecraft.network.chat.TextColor.parseColor(hex).getOrThrow();
                     result.append(Component.literal(text).withStyle(net.minecraft.network.chat.Style.EMPTY.withColor(color)));
                 } catch (Exception e) {
-                    result.append(Component.literal(part));
+                    result.append(Component.literal(part.replace("&", "§")));
                 }
             } else {
-                result.append(Component.literal(part));
+                result.append(Component.literal(part.replace("&", "§")));
             }
         }
         return result;
@@ -80,6 +87,12 @@ public class ServerMenuHandler {
             event.setCanceled(true);
             int pSlot = activeRenames.remove(sp.getUUID());
             String input = event.getMessage().getString();
+
+            if (input.trim().isEmpty()) {
+                sp.sendSystemMessage(Component.literal("§cName cannot be blank!"));
+                sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), Component.literal("Builder"))));
+                return;
+            }
 
             if (input.equalsIgnoreCase("cancel")) {
                 sp.sendSystemMessage(Component.literal("§cRename cancelled."));
@@ -94,7 +107,10 @@ public class ServerMenuHandler {
             int cost = getCost("rename", pkmn, cur);
 
             if (CoinsEngineHook.takeBalance(sp, cur, cost)) {
-                pkmn.setNickname(parseHexName(input));
+                Component formattedName = parseHexName(input);
+                pkmn.setNickname(formattedName);
+                pkmn.getPixelmonEntity().ifPresent(entity -> entity.setCustomNameVisible(true));
+
                 triggerSuccess(sp, pkmn, "rename", cost, cur);
             } else {
                 triggerFail(sp, cur);
@@ -184,8 +200,8 @@ public class ServerMenuHandler {
             case "gender": base = isShards ? Config.SERVER.shardsGenderCost.get() : Config.SERVER.genderCost.get(); break;
             case "growth": base = isShards ? Config.SERVER.shardsGrowthCost.get() : Config.SERVER.growthCost.get(); break;
             case "ball": base = isShards ? Config.SERVER.shardsBallCost.get() : Config.SERVER.ballCost.get(); break;
-            case "untradeable": base = Config.SERVER.untradeableCost.get(); break;
-            case "unbreedable": base = Config.SERVER.unbreedableCost.get(); break;
+            case "untradeable": base = isShards ? Config.SERVER.shardsUntradeableCost.get() : Config.SERVER.untradeableCost.get(); break;
+            case "unbreedable": base = isShards ? Config.SERVER.shardsUnbreedableCost.get() : Config.SERVER.unbreedableCost.get(); break;
             case "rename": base = isShards ? Config.SERVER.shardsRenameCost.get() : Config.SERVER.renameCost.get(); break;
         }
         return pkmn.isShiny() && !type.equals("shiny") ? (int)(base * Config.SERVER.shinyMultiplier.get()) : base;
@@ -240,8 +256,20 @@ public class ServerMenuHandler {
                 Pokemon pkmn = StorageProxy.getPartyNow(sp).get(i);
                 if (pkmn != null) {
 
-                    String growthName = pkmn.getGrowth().unwrapKey().map(k -> k.location().getPath()).orElse("ordinary");
-                    growthName = growthName.substring(0, 1).toUpperCase() + growthName.substring(1);
+                    com.pixelmonmod.pixelmon.api.pokemon.growth.GrowthData gData = pkmn.getForm().getGrowthData();
+                    double zScore = (pkmn.getSize() - gData.mean()) / gData.standardDeviation();
+
+                    String growthName = "Ordinary";
+                    if (zScore <= -6.0) growthName = "Microscopic";
+                    else if (zScore <= -4.0) growthName = "Pygmy";
+                    else if (zScore <= -2.0) growthName = "Runt";
+                    else if (zScore <= -0.5) growthName = "Small";
+                    else if (zScore <= 0.5) growthName = "Ordinary";
+                    else if (zScore <= 2.0) growthName = "Huge";
+                    else if (zScore <= 4.0) growthName = "Giant";
+                    else if (zScore <= 6.0) growthName = "Enormous";
+                    else growthName = "Ginormous";
+
                     String ballName = pkmn.getBall().toString().replace("pixelmon:", "").replace("_", " ");
                     ballName = ballName.substring(0, 1).toUpperCase() + ballName.substring(1);
                     String gender = pkmn.getGender().name();
@@ -300,8 +328,20 @@ public class ServerMenuHandler {
             if (pkmn == null) return;
             String cur = getCurrency(pkmn);
 
-            String growthName = pkmn.getGrowth().unwrapKey().map(k -> k.location().getPath()).orElse("ordinary");
-            growthName = growthName.substring(0, 1).toUpperCase() + growthName.substring(1);
+            com.pixelmonmod.pixelmon.api.pokemon.growth.GrowthData gData = pkmn.getForm().getGrowthData();
+            double zScore = (pkmn.getSize() - gData.mean()) / gData.standardDeviation();
+
+            String growthName = "Ordinary";
+            if (zScore <= -6.0) growthName = "Microscopic";
+            else if (zScore <= -4.0) growthName = "Pygmy";
+            else if (zScore <= -2.0) growthName = "Runt";
+            else if (zScore <= -0.5) growthName = "Small";
+            else if (zScore <= 0.5) growthName = "Ordinary";
+            else if (zScore <= 2.0) growthName = "Huge";
+            else if (zScore <= 4.0) growthName = "Giant";
+            else if (zScore <= 6.0) growthName = "Enormous";
+            else growthName = "Ginormous";
+
             String ballName = pkmn.getBall().toString().replace("pixelmon:", "").replace("_", " ");
             ballName = ballName.substring(0, 1).toUpperCase() + ballName.substring(1);
             String gender = pkmn.getGender().name();
@@ -357,7 +397,13 @@ public class ServerMenuHandler {
             getContainer().setItem(Config.SERVER.slotAbility.get(), createBtn("pixelmon:ability_capsule", "§eChange Ability", "§7Click to open Ability Menu"));
             getContainer().setItem(Config.SERVER.slotNature.get(), createBtn("pixelmon:mint_adamant", "§bSet Nature", "§7Cost: " + getCost("nature", pkmn, cur)));
             getContainer().setItem(Config.SERVER.slotGrowth.get(), createBtn("minecraft:slime_block", "§2Set Growth", "§7Cost: " + getCost("growth", pkmn, cur)));
-            getContainer().setItem(Config.SERVER.slotGender.get(), createBtn("minecraft:pink_dye", "§dSet Gender", "§7Cost: " + getCost("gender", pkmn, cur)));
+
+            // --- FIX: Locks Gender button if Pokemon is Genderless ---
+            if (pkmn.getGender() == Gender.NONE) {
+                getContainer().setItem(Config.SERVER.slotGender.get(), createBtn("minecraft:barrier", "§cGenderless", "§7This Pokémon has no gender."));
+            } else {
+                getContainer().setItem(Config.SERVER.slotGender.get(), createBtn("minecraft:pink_dye", "§dSet Gender", "§7Cost: " + getCost("gender", pkmn, cur)));
+            }
 
             getContainer().setItem(Config.SERVER.slotBall.get(), createBallBtn("poke_ball", "§fSwap Pokeball", "§7Cost: " + getCost("ball", pkmn, cur)));
 
@@ -380,8 +426,12 @@ public class ServerMenuHandler {
             if (slot == Config.SERVER.slotAbility.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new AbilityMenu(id, inv, pSlot), Component.literal("Select Ability"))));
             if (slot == Config.SERVER.slotNature.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new NatureMenu(id, inv, pSlot), Component.literal("Select Nature"))));
             if (slot == Config.SERVER.slotGrowth.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new GrowthMenu(id, inv, pSlot), Component.literal("Select Growth"))));
-            if (slot == Config.SERVER.slotGender.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new GenderMenu(id, inv, pSlot), Component.literal("Select Gender"))));
             if (slot == Config.SERVER.slotBall.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BallMenu(id, inv, pSlot), Component.literal("Select Ball"))));
+
+            // Only opens the Gender menu if the Pokemon actually has a gender
+            if (slot == Config.SERVER.slotGender.get() && pkmn.getGender() != Gender.NONE) {
+                sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new GenderMenu(id, inv, pSlot), Component.literal("Select Gender"))));
+            }
 
             if (slot == Config.SERVER.slotEvs.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new StatSelectMenu(id, inv, pSlot, "ev"), Component.literal("Select EV Stat"))));
             if (slot == Config.SERVER.slotIvs.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new StatSelectMenu(id, inv, pSlot, "iv"), Component.literal("Select IV Stat"))));
@@ -727,24 +777,26 @@ public class ServerMenuHandler {
                         else if (action.equals("breedable")) pkmn.removeFlag(Flags.UNBREEDABLE);
                         else if (action.startsWith("ability:")) pkmn.setAbilitySlot(Integer.parseInt(action.split(":")[1]));
                         else if (action.startsWith("growth:")) {
+                            com.pixelmonmod.pixelmon.api.pokemon.growth.GrowthData gData = pkmn.getForm().getGrowthData();
+                            double mean = gData.mean();
+                            double stdDev = gData.standardDeviation();
+                            double zScore = 0.0;
+
+                            // --- FIX: The mathematically reversed Z-Score calculations for true scaling ---
                             String targetGrowth = action.split(":")[1].toLowerCase();
-                            net.minecraft.resources.ResourceLocation rl = net.minecraft.resources.ResourceLocation.parse("pixelmon:" + targetGrowth);
-
-                            net.minecraft.core.Holder<com.pixelmonmod.pixelmon.api.pokemon.growth.Growth> growthHolder =
-                                    com.pixelmonmod.pixelmon.api.util.helpers.RegistryHelper.getHolder(com.pixelmonmod.pixelmon.init.registry.PixelmonRegistry.GROWTH_REGISTRY, rl);
-
-                            if (growthHolder != null && growthHolder.isBound()) {
-                                pkmn.setGrowth(growthHolder);
-                            } else {
-                                // BUG FIX: Refunding logic now uses the suppressed output flag so it doesn't spam the server log!
-                                sp.sendSystemMessage(Component.literal("§cGrowth '" + targetGrowth + "' could not be found in the 1.21.1 registry! Refunding..."));
-                                String refundCmd = (cur.equals(Config.SERVER.currencySpecial.get()) ? Config.SERVER.ecoTakeCmdSpecial.get() : Config.SERVER.ecoTakeCmdStandard.get())
-                                        .replace("take", "give").replace("remove", "give")
-                                        .replace("%player%", sp.getGameProfile().getName())
-                                        .replace("%amount%", String.valueOf(finalCost));
-                                sp.server.getCommands().performPrefixedCommand(sp.server.createCommandSourceStack().withSuppressedOutput(), refundCmd);
-                                return;
+                            switch (targetGrowth) {
+                                case "microscopic": zScore = -7.5; break;
+                                case "pygmy":       zScore = -5.25; break;
+                                case "runt":        zScore = -3.0; break;
+                                case "small":       zScore = -1.5; break;
+                                case "ordinary":    zScore = 0.0; break;
+                                case "huge":        zScore = 1.5; break;
+                                case "giant":       zScore = 3.0; break;
+                                case "enormous":    zScore = 5.25; break;
+                                case "ginormous":   zScore = 7.5; break;
                             }
+
+                            pkmn.setSize(mean + (zScore * stdDev));
                         }
                         else if (action.startsWith("nature:")) PokemonSpecificationProxy.create(action).get().apply(pkmn);
                         else if (action.startsWith("gender:")) PokemonSpecificationProxy.create(action).get().apply(pkmn);
