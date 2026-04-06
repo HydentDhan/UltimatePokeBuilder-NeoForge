@@ -1,3 +1,5 @@
+config-version: 1
+
 economy-integration:
   currencyStandard: "tokens"
   currencySpecial: "shards"

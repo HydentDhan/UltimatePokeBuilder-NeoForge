@@ -12,32 +12,69 @@ public class Config {
     private static Map<String, Object> data;
     public static final Server SERVER = new Server();
 
+    private static final int CURRENT_VERSION = 1;
+
     public static void loadConfig(File configDir) {
-        File configFile = new File(configDir, "UltimatePokeBuilder/upb-default-config.yml");
+        File configFile = new File(configDir, "UltimatePokeBuilder/config.yml");
 
         if (!configFile.getParentFile().exists()) {
             configFile.getParentFile().mkdirs();
         }
 
         if (!configFile.exists()) {
-            try (InputStream in = Config.class.getResourceAsStream("/upb-default-config.yml")) {
-                if (in != null) {
-                    Files.copy(in, configFile.toPath());
-                } else {
-                    UltimatePokeBuilder.LOGGER.error("Default upb-default-config.yml not found in resources folder!");
-                    configFile.createNewFile();
+            extractDefaultConfig(configFile);
+        }
+
+        loadYamlToMemory(configFile);
+
+        boolean requiresUpdate = false;
+        if (data != null) {
+            if (!data.containsKey("config-version")) {
+                requiresUpdate = true;
+            } else {
+                Object verObj = data.get("config-version");
+                if (verObj instanceof Number && ((Number) verObj).intValue() < CURRENT_VERSION) {
+                    requiresUpdate = true;
                 }
-            } catch (IOException e) {
-                UltimatePokeBuilder.LOGGER.error("Failed to generate default upb-default-config.yml", e);
             }
         }
 
+        if (requiresUpdate) {
+            UltimatePokeBuilder.LOGGER.warn("=====================================================");
+            UltimatePokeBuilder.LOGGER.warn("Outdated UltimatePokeBuilder config.yml detected!");
+            UltimatePokeBuilder.LOGGER.warn("Creating a backup and generating a fresh config...");
+            UltimatePokeBuilder.LOGGER.warn("Please copy your old prices into the new config.yml!");
+            UltimatePokeBuilder.LOGGER.warn("=====================================================");
+
+            File backupFile = new File(configDir, "UltimatePokeBuilder/config-backup-v" + (CURRENT_VERSION - 1) + "-" + System.currentTimeMillis() + ".yml");
+            configFile.renameTo(backupFile);
+
+            extractDefaultConfig(configFile);
+            loadYamlToMemory(configFile);
+        }
+
+        SERVER.reload();
+    }
+
+    private static void extractDefaultConfig(File configFile) {
+        try (InputStream in = Config.class.getResourceAsStream("/upb-default-config.yml")) {
+            if (in != null) {
+                Files.copy(in, configFile.toPath());
+            } else {
+                UltimatePokeBuilder.LOGGER.error("Default config not found in resources folder!");
+                configFile.createNewFile();
+            }
+        } catch (IOException e) {
+            UltimatePokeBuilder.LOGGER.error("Failed to generate default config.yml", e);
+        }
+    }
+
+    private static void loadYamlToMemory(File configFile) {
         try (InputStream in = new FileInputStream(configFile)) {
             Yaml yaml = new Yaml();
             data = yaml.load(in);
-            SERVER.reload();
         } catch (Exception e) {
-            UltimatePokeBuilder.LOGGER.error("Failed to load upb-default-config.yml. Make sure formatting is correct!", e);
+            UltimatePokeBuilder.LOGGER.error("Failed to load config.yml. Make sure formatting is correct!", e);
         }
     }
 
@@ -115,10 +152,9 @@ public class Config {
         public final ConfigValue<Integer> ballCost = new ConfigValue<>("pricing-standard.ballCost", 50);
         public final ConfigValue<Integer> untradeableCost = new ConfigValue<>("pricing-standard.untradeableCost", 50);
         public final ConfigValue<Integer> unbreedableCost = new ConfigValue<>("pricing-standard.unbreedableCost", 50);
-
         public final ConfigValue<Integer> renameCost = new ConfigValue<>("pricing-standard.renameCost", 100);
-        public final ConfigValue<Integer> shardsRenameCost = new ConfigValue<>("pricing-special.shardsRenameCost", 5);
 
+        public final ConfigValue<Integer> shardsRenameCost = new ConfigValue<>("pricing-special.shardsRenameCost", 5);
         public final ConfigValue<Integer> shardsShinyCost = new ConfigValue<>("pricing-special.shardsShinyCost", 10);
         public final ConfigValue<Integer> shardsAbilityCost = new ConfigValue<>("pricing-special.shardsAbilityCost", 5);
         public final ConfigValue<Integer> shardsHiddenAbilityCost = new ConfigValue<>("pricing-special.shardsHiddenAbilityCost", 8);
@@ -148,9 +184,7 @@ public class Config {
         public final ConfigValue<Integer> slotBall = new ConfigValue<>("ui-layout.slotBall", 25);
         public final ConfigValue<Integer> slotEvs = new ConfigValue<>("ui-layout.slotEvs", 29);
         public final ConfigValue<Integer> slotIvs = new ConfigValue<>("ui-layout.slotIvs", 30);
-
         public final ConfigValue<Integer> slotRename = new ConfigValue<>("ui-layout.slotRename", 31);
-
         public final ConfigValue<Integer> slotUntradeable = new ConfigValue<>("ui-layout.slotUntradeable", 32);
         public final ConfigValue<Integer> slotUnbreedable = new ConfigValue<>("ui-layout.slotUnbreedable", 33);
         public final ConfigValue<Integer> slotBack = new ConfigValue<>("ui-layout.slotBack", 49);

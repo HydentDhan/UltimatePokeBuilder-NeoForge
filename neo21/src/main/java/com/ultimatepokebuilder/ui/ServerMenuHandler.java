@@ -109,6 +109,7 @@ public class ServerMenuHandler {
             if (CoinsEngineHook.takeBalance(sp, cur, cost)) {
                 Component formattedName = parseHexName(input);
                 pkmn.setNickname(formattedName);
+
                 pkmn.getPixelmonEntity().ifPresent(entity -> entity.setCustomNameVisible(true));
 
                 triggerSuccess(sp, pkmn, "rename", cost, cur);
@@ -398,7 +399,6 @@ public class ServerMenuHandler {
             getContainer().setItem(Config.SERVER.slotNature.get(), createBtn("pixelmon:mint_adamant", "§bSet Nature", "§7Cost: " + getCost("nature", pkmn, cur)));
             getContainer().setItem(Config.SERVER.slotGrowth.get(), createBtn("minecraft:slime_block", "§2Set Growth", "§7Cost: " + getCost("growth", pkmn, cur)));
 
-            // --- FIX: Locks Gender button if Pokemon is Genderless ---
             if (pkmn.getGender() == Gender.NONE) {
                 getContainer().setItem(Config.SERVER.slotGender.get(), createBtn("minecraft:barrier", "§cGenderless", "§7This Pokémon has no gender."));
             } else {
@@ -428,7 +428,6 @@ public class ServerMenuHandler {
             if (slot == Config.SERVER.slotGrowth.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new GrowthMenu(id, inv, pSlot), Component.literal("Select Growth"))));
             if (slot == Config.SERVER.slotBall.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BallMenu(id, inv, pSlot), Component.literal("Select Ball"))));
 
-            // Only opens the Gender menu if the Pokemon actually has a gender
             if (slot == Config.SERVER.slotGender.get() && pkmn.getGender() != Gender.NONE) {
                 sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new GenderMenu(id, inv, pSlot), Component.literal("Select Gender"))));
             }
@@ -777,12 +776,12 @@ public class ServerMenuHandler {
                         else if (action.equals("breedable")) pkmn.removeFlag(Flags.UNBREEDABLE);
                         else if (action.startsWith("ability:")) pkmn.setAbilitySlot(Integer.parseInt(action.split(":")[1]));
                         else if (action.startsWith("growth:")) {
+
                             com.pixelmonmod.pixelmon.api.pokemon.growth.GrowthData gData = pkmn.getForm().getGrowthData();
                             double mean = gData.mean();
                             double stdDev = gData.standardDeviation();
                             double zScore = 0.0;
 
-                            // --- FIX: The mathematically reversed Z-Score calculations for true scaling ---
                             String targetGrowth = action.split(":")[1].toLowerCase();
                             switch (targetGrowth) {
                                 case "microscopic": zScore = -7.5; break;
