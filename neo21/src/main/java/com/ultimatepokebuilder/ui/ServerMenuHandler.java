@@ -9,6 +9,7 @@ import com.pixelmonmod.pixelmon.api.util.helpers.SpriteItemHelper;
 import com.pixelmonmod.pixelmon.api.pokemon.species.gender.Gender;
 import com.ultimatepokebuilder.UltimatePokeBuilder;
 import com.ultimatepokebuilder.config.Config;
+import com.ultimatepokebuilder.config.Language;
 import com.ultimatepokebuilder.util.CoinsEngineHook;
 import com.ultimatepokebuilder.util.WebhookUtil;
 import net.minecraft.core.component.DataComponents;
@@ -89,14 +90,14 @@ public class ServerMenuHandler {
             String input = event.getMessage().getString();
 
             if (input.trim().isEmpty()) {
-                sp.sendSystemMessage(parseHexName("&#FF5555Name cannot be blank!"));
-                sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), Component.literal("Builder"))));
+                sp.sendSystemMessage(parseHexName(Language.STRINGS.msgRenameBlank.get()));
+                sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleBuilder.get()))));
                 return;
             }
 
             if (input.equalsIgnoreCase("cancel")) {
-                sp.sendSystemMessage(parseHexName("&#FF5555Rename cancelled."));
-                sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), Component.literal("Builder"))));
+                sp.sendSystemMessage(parseHexName(Language.STRINGS.msgRenameCancel.get()));
+                sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleBuilder.get()))));
                 return;
             }
 
@@ -117,7 +118,7 @@ public class ServerMenuHandler {
                 triggerFail(sp, cur);
             }
 
-            sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), Component.literal("Builder"))));
+            sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleBuilder.get()))));
         }
     }
 
@@ -127,7 +128,6 @@ public class ServerMenuHandler {
         return item;
     }
 
-    // --- FIX: Buttons now globally process Hex Colors! ---
     private static ItemStack createBtn(String id, String name, String lore) {
         ItemStack item = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)));
         if (item.isEmpty()) item = new ItemStack(Items.PAPER);
@@ -222,16 +222,16 @@ public class ServerMenuHandler {
     }
 
     public static void openPartyMenu(ServerPlayer player) {
-        player.openMenu(new SimpleMenuProvider((id, inv, p) -> new PartyMenu(id, inv), Component.literal("Select a Pokemon")));
+        player.openMenu(new SimpleMenuProvider((id, inv, p) -> new PartyMenu(id, inv), parseHexName(Language.STRINGS.titleParty.get())));
     }
 
     public static void openConfirm(ServerPlayer sp, int pSlot, String action, int cost, String cur) {
-        sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new ConfirmMenu(id, inv, pSlot, action, cost, cur), Component.literal("Confirm Upgrade"))));
+        sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new ConfirmMenu(id, inv, pSlot, action, cost, cur), parseHexName(Language.STRINGS.titleConfirm.get()))));
     }
 
     public static void triggerSuccess(ServerPlayer sp, Pokemon pkmn, String action, int cost, String cur) {
         sp.level().playSound(null, sp.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.5f, 1.0f);
-        sp.sendSystemMessage(parseHexName("&#55FF55Upgrade successful!"));
+        sp.sendSystemMessage(parseHexName(Language.STRINGS.msgUpgradeSuccess.get()));
 
         String cleanAction = action.toUpperCase();
         String auditMsg = "[UPB Audit] " + sp.getName().getString() + " spent " + cost + " " + cur + " to apply [" + cleanAction + "] to " + pkmn.getLocalizedName();
@@ -243,7 +243,7 @@ public class ServerMenuHandler {
 
     public static void triggerFail(ServerPlayer sp, String cur) {
         sp.level().playSound(null, sp.blockPosition(), SoundEvents.NOTE_BLOCK_BASS.value(), SoundSource.PLAYERS, 1.0f, 0.5f);
-        sp.sendSystemMessage(parseHexName("&#FF5555Insufficient " + cur.toUpperCase() + "!"));
+        sp.sendSystemMessage(parseHexName(Language.STRINGS.msgInsufficient.get().replace("%currency%", cur.toUpperCase())));
     }
 
     public static class PartyMenu extends ChestMenu {
@@ -324,7 +324,7 @@ public class ServerMenuHandler {
             List<Integer> partySlots = Config.SERVER.partySlots.get();
             if (partySlots.contains(slotId)) {
                 int pIndex = partySlots.indexOf(slotId);
-                ((ServerPlayer) p).server.execute(() -> p.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pIndex), Component.literal("Builder"))));
+                ((ServerPlayer) p).server.execute(() -> p.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pIndex), parseHexName(Language.STRINGS.titleBuilder.get()))));
             }
         }
         @Override public boolean stillValid(Player p) { return true; }
@@ -391,42 +391,39 @@ public class ServerMenuHandler {
             getContainer().setItem(Config.SERVER.slotPokemon.get(), sprite);
 
             if (pkmn.isShiny()) {
-                getContainer().setItem(Config.SERVER.slotShiny.get(), createBtn("minecraft:sponge", "&#FFFF55Revert Shiny", "&#AAAAAACost: " + getCost("shiny", pkmn, cur)));
+                getContainer().setItem(Config.SERVER.slotShiny.get(), createBtn("minecraft:sponge", Language.STRINGS.btnRevertShiny.get(), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("shiny", pkmn, cur))).replace("%currency%", cur)));
             } else {
-                getContainer().setItem(Config.SERVER.slotShiny.get(), createBtn("pixelmon:shiny_stone", "&#FFAA00Make Shiny", "&#AAAAAACost: " + getCost("shiny", pkmn, cur)));
+                getContainer().setItem(Config.SERVER.slotShiny.get(), createBtn("pixelmon:shiny_stone", Language.STRINGS.btnMakeShiny.get(), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("shiny", pkmn, cur))).replace("%currency%", cur)));
             }
 
             if (pkmn.hasFlag(Flags.UNTRADEABLE)) {
-                getContainer().setItem(Config.SERVER.slotUntradeable.get(), createBtn("minecraft:gold_nugget", "&#FFFF55Make Tradeable", "&#AAAAAACost: " + getCost("untradeable", pkmn, cur)));
+                getContainer().setItem(Config.SERVER.slotUntradeable.get(), createBtn("minecraft:gold_nugget", Language.STRINGS.btnMakeTradeable.get(), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("untradeable", pkmn, cur))).replace("%currency%", cur)));
             } else {
-                getContainer().setItem(Config.SERVER.slotUntradeable.get(), createBtn("minecraft:iron_bars", "&#FF5555Make Untradeable", "&#AAAAAACost: " + getCost("untradeable", pkmn, cur)));
+                getContainer().setItem(Config.SERVER.slotUntradeable.get(), createBtn("minecraft:iron_bars", Language.STRINGS.btnMakeUntradeable.get(), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("untradeable", pkmn, cur))).replace("%currency%", cur)));
             }
 
             if (pkmn.hasFlag(Flags.UNBREEDABLE)) {
-                getContainer().setItem(Config.SERVER.slotUnbreedable.get(), createBtn("minecraft:egg", "&#FFFF55Make Breedable", "&#AAAAAACost: " + getCost("unbreedable", pkmn, cur)));
+                getContainer().setItem(Config.SERVER.slotUnbreedable.get(), createBtn("minecraft:egg", Language.STRINGS.btnMakeBreedable.get(), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("unbreedable", pkmn, cur))).replace("%currency%", cur)));
             } else {
-                getContainer().setItem(Config.SERVER.slotUnbreedable.get(), createBtn("minecraft:iron_bars", "&#FF5555Make Unbreedable", "&#AAAAAACost: " + getCost("unbreedable", pkmn, cur)));
+                getContainer().setItem(Config.SERVER.slotUnbreedable.get(), createBtn("minecraft:iron_bars", Language.STRINGS.btnMakeUnbreedable.get(), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("unbreedable", pkmn, cur))).replace("%currency%", cur)));
             }
 
-            getContainer().setItem(Config.SERVER.slotLevel.get(), createBtn("pixelmon:rare_candy", "&#55FF55Adjust Level", "&#AAAAAACost per lvl: " + getCost("level", pkmn, cur)));
-            getContainer().setItem(Config.SERVER.slotAbility.get(), createBtn("pixelmon:ability_capsule", "&#FFFF55Change Ability", "&#AAAAAAClick to open Ability Menu"));
-            getContainer().setItem(Config.SERVER.slotNature.get(), createBtn("pixelmon:mint_adamant", "&#55FFFFSet Nature", "&#AAAAAACost: " + getCost("nature", pkmn, cur)));
-            getContainer().setItem(Config.SERVER.slotGrowth.get(), createBtn("minecraft:slime_block", "&#55AA00Set Growth", "&#AAAAAACost: " + getCost("growth", pkmn, cur)));
+            getContainer().setItem(Config.SERVER.slotLevel.get(), createBtn("pixelmon:rare_candy", Language.STRINGS.btnLevel.get(), Language.STRINGS.loreCostLvl.get().replace("%cost%", String.valueOf(getCost("level", pkmn, cur))).replace("%currency%", cur)));
+            getContainer().setItem(Config.SERVER.slotAbility.get(), createBtn("pixelmon:ability_capsule", Language.STRINGS.btnAbility.get(), Language.STRINGS.loreClickAbility.get()));
+            getContainer().setItem(Config.SERVER.slotNature.get(), createBtn("pixelmon:mint_adamant", Language.STRINGS.btnNature.get(), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("nature", pkmn, cur))).replace("%currency%", cur)));
+            getContainer().setItem(Config.SERVER.slotGrowth.get(), createBtn("minecraft:slime_block", Language.STRINGS.btnGrowth.get(), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("growth", pkmn, cur))).replace("%currency%", cur)));
 
             if (pkmn.getGender() == Gender.NONE) {
-                getContainer().setItem(Config.SERVER.slotGender.get(), createBtn("minecraft:barrier", "&#FF5555Genderless", "&#AAAAAAThis Pokémon has no gender."));
+                getContainer().setItem(Config.SERVER.slotGender.get(), createBtn("minecraft:barrier", Language.STRINGS.btnGenderless.get(), Language.STRINGS.loreGenderless.get()));
             } else {
-                getContainer().setItem(Config.SERVER.slotGender.get(), createBtn("minecraft:pink_dye", "&#FF55FFSet Gender", "&#AAAAAACost: " + getCost("gender", pkmn, cur)));
+                getContainer().setItem(Config.SERVER.slotGender.get(), createBtn("minecraft:pink_dye", Language.STRINGS.btnGender.get(), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("gender", pkmn, cur))).replace("%currency%", cur)));
             }
 
-            getContainer().setItem(Config.SERVER.slotBall.get(), createBallBtn("poke_ball", "&#FFFFFFSwap Pokeball", "&#AAAAAACost: " + getCost("ball", pkmn, cur)));
-            getContainer().setItem(Config.SERVER.slotEvs.get(), createBtn("pixelmon:hp_up", "&#FF5555Adjust EVs", "&#AAAAAACost per EV: " + getCost("ev", pkmn, cur)));
-            getContainer().setItem(Config.SERVER.slotIvs.get(), createBtn("pixelmon:calcium", "&#55FF55Adjust IVs", "&#AAAAAACost per IV: " + getCost("iv", pkmn, cur)));
-
-            // --- FIX: Barrier block logic for Coming Soon Rename Feature ---
-            getContainer().setItem(Config.SERVER.slotRename.get(), createBtn("minecraft:barrier", "&#FF5555&lRename Pokémon", "&#AAAAAAStatus: &#FFAA00&lComing Soon!\n&#AAAAAASoon you will be able to rename\n&#AAAAAAwith &#FF55FFH&#5555FFe&#55FFFFx &#55FF55C&#FFFF55o&#FFAA00l&#FF5555o&#FF55FFr&#5555FFs&#AAAAAA!"));
-
-            getContainer().setItem(Config.SERVER.slotBack.get(), createBtn("minecraft:arrow", "&#FF5555Back to Party", null));
+            getContainer().setItem(Config.SERVER.slotBall.get(), createBallBtn("poke_ball", Language.STRINGS.btnBall.get(), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("ball", pkmn, cur))).replace("%currency%", cur)));
+            getContainer().setItem(Config.SERVER.slotEvs.get(), createBtn("pixelmon:hp_up", Language.STRINGS.btnEvs.get(), Language.STRINGS.loreCostEv.get().replace("%cost%", String.valueOf(getCost("ev", pkmn, cur))).replace("%currency%", cur)));
+            getContainer().setItem(Config.SERVER.slotIvs.get(), createBtn("pixelmon:calcium", Language.STRINGS.btnIvs.get(), Language.STRINGS.loreCostIv.get().replace("%cost%", String.valueOf(getCost("iv", pkmn, cur))).replace("%currency%", cur)));
+            getContainer().setItem(Config.SERVER.slotRename.get(), createBtn("minecraft:barrier", Language.STRINGS.btnRename.get(), Language.STRINGS.loreRenameSoon.get()));
+            getContainer().setItem(Config.SERVER.slotBack.get(), createBtn("minecraft:arrow", Language.STRINGS.btnBackParty.get(), null));
         }
 
         @Override
@@ -436,26 +433,25 @@ public class ServerMenuHandler {
             String cur = getCurrency(pkmn);
 
             if (slot == Config.SERVER.slotBack.get()) sp.server.execute(() -> openPartyMenu(sp));
-            if (slot == Config.SERVER.slotLevel.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new AdjustMenu(id, inv, pSlot, "level", null), Component.literal("Adjust Level"))));
-            if (slot == Config.SERVER.slotAbility.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new AbilityMenu(id, inv, pSlot), Component.literal("Select Ability"))));
-            if (slot == Config.SERVER.slotNature.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new NatureMenu(id, inv, pSlot), Component.literal("Select Nature"))));
-            if (slot == Config.SERVER.slotGrowth.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new GrowthMenu(id, inv, pSlot), Component.literal("Select Growth"))));
-            if (slot == Config.SERVER.slotBall.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BallMenu(id, inv, pSlot), Component.literal("Select Ball"))));
+            if (slot == Config.SERVER.slotLevel.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new AdjustMenu(id, inv, pSlot, "level", null), parseHexName(Language.STRINGS.titleLevel.get()))));
+            if (slot == Config.SERVER.slotAbility.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new AbilityMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleAbility.get()))));
+            if (slot == Config.SERVER.slotNature.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new NatureMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleNature.get()))));
+            if (slot == Config.SERVER.slotGrowth.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new GrowthMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleGrowth.get()))));
+            if (slot == Config.SERVER.slotBall.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BallMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleBall.get()))));
 
             if (slot == Config.SERVER.slotGender.get() && pkmn.getGender() != Gender.NONE) {
-                sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new GenderMenu(id, inv, pSlot), Component.literal("Select Gender"))));
+                sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new GenderMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleGender.get()))));
             }
 
-            if (slot == Config.SERVER.slotEvs.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new StatSelectMenu(id, inv, pSlot, "ev"), Component.literal("Select EV Stat"))));
-            if (slot == Config.SERVER.slotIvs.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new StatSelectMenu(id, inv, pSlot, "iv"), Component.literal("Select IV Stat"))));
+            if (slot == Config.SERVER.slotEvs.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new StatSelectMenu(id, inv, pSlot, "ev"), parseHexName(Language.STRINGS.titleEvs.get()))));
+            if (slot == Config.SERVER.slotIvs.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new StatSelectMenu(id, inv, pSlot, "iv"), parseHexName(Language.STRINGS.titleIvs.get()))));
 
             if (slot == Config.SERVER.slotShiny.get()) openConfirm(sp, pSlot, pkmn.isShiny() ? "unshiny" : "shiny", getCost("shiny", pkmn, cur), cur);
             if (slot == Config.SERVER.slotUntradeable.get()) openConfirm(sp, pSlot, pkmn.hasFlag(Flags.UNTRADEABLE) ? "tradeable" : "untradeable", getCost("untradeable", pkmn, cur), cur);
             if (slot == Config.SERVER.slotUnbreedable.get()) openConfirm(sp, pSlot, pkmn.hasFlag(Flags.UNBREEDABLE) ? "breedable" : "unbreedable", getCost("unbreedable", pkmn, cur), cur);
 
-            // --- FIX: The UI click for Rename is now disabled with a gentle reminder ---
             if (slot == Config.SERVER.slotRename.get()) {
-                sp.sendSystemMessage(parseHexName("&#FF5555This feature is currently in development and coming soon!"));
+                sp.sendSystemMessage(parseHexName(Language.STRINGS.msgRenameDisabled.get()));
             }
         }
         @Override public boolean stillValid(Player p) { return true; }
@@ -483,17 +479,17 @@ public class ServerMenuHandler {
                 if (hiddenAbs.length > 0 && hiddenAbs[0] != null) ha = hiddenAbs[0].getName();
             } catch (Exception e) {}
 
-            if (!ab1.equals("None")) getContainer().setItem(11, createBtn("pixelmon:ability_capsule", "&#FFFF55Ability 1: &#FFFFFF" + ab1, "&#AAAAAACost: " + getCost("ability", pkmn, cur)));
-            if (!ab2.equals("None")) getContainer().setItem(13, createBtn("pixelmon:ability_capsule", "&#FFFF55Ability 2: &#FFFFFF" + ab2, "&#AAAAAACost: " + getCost("ability", pkmn, cur)));
-            if (!ha.equals("None"))  getContainer().setItem(15, createBtn("pixelmon:ability_patch", "&#FF55FFHidden Ability: &#FFFFFF" + ha, "&#AAAAAACost: " + getCost("hidden_ability", pkmn, cur)));
+            if (!ab1.equals("None")) getContainer().setItem(11, createBtn("pixelmon:ability_capsule", "&#FFFF55Ability 1: &#FFFFFF" + ab1, Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("ability", pkmn, cur))).replace("%currency%", cur)));
+            if (!ab2.equals("None")) getContainer().setItem(13, createBtn("pixelmon:ability_capsule", "&#FFFF55Ability 2: &#FFFFFF" + ab2, Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("ability", pkmn, cur))).replace("%currency%", cur)));
+            if (!ha.equals("None"))  getContainer().setItem(15, createBtn("pixelmon:ability_patch", "&#FF55FFHidden Ability: &#FFFFFF" + ha, Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("hidden_ability", pkmn, cur))).replace("%currency%", cur)));
 
-            getContainer().setItem(26, createBtn("minecraft:barrier", "&#FF5555Back to Builder", null));
+            getContainer().setItem(26, createBtn("minecraft:barrier", Language.STRINGS.btnBackBuilder.get(), null));
         }
 
         @Override
         public void clicked(int slot, int b, ClickType c, Player p) {
             ServerPlayer sp = (ServerPlayer) p;
-            if (slot == 26) { sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), Component.literal("Builder")))); return; }
+            if (slot == 26) { sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleBuilder.get())))); return; }
             Pokemon pkmn = StorageProxy.getPartyNow(sp).get(pSlot);
             String cur = getCurrency(pkmn);
 
@@ -518,7 +514,7 @@ public class ServerMenuHandler {
             for (int i = 0; i < 27; i++) getContainer().setItem(i, getFiller());
 
             String title = mode.equals("ev") ? "&#FFFF55Adjust EVs" : "&#55FF55Adjust IVs";
-            getContainer().setItem(4, createBtn("minecraft:book", title, "&#AAAAAASelect a stat to modify"));
+            getContainer().setItem(4, createBtn("minecraft:book", title, Language.STRINGS.loreClickStat.get()));
 
             getContainer().setItem(10, createBtn("minecraft:golden_apple", "&#FF5555HP", null));
             getContainer().setItem(11, createBtn("minecraft:iron_sword", "&#FF5555Attack", null));
@@ -527,13 +523,13 @@ public class ServerMenuHandler {
             getContainer().setItem(15, createBtn("minecraft:shield", "&#55FF55Sp. Def", null));
             getContainer().setItem(16, createBtn("minecraft:feather", "&#55FFFFSpeed", null));
 
-            getContainer().setItem(26, createBtn("minecraft:barrier", "&#FF5555Back to Builder", null));
+            getContainer().setItem(26, createBtn("minecraft:barrier", Language.STRINGS.btnBackBuilder.get(), null));
         }
 
         @Override
         public void clicked(int slot, int b, ClickType c, Player p) {
             ServerPlayer sp = (ServerPlayer) p;
-            if (slot == 26) { sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), Component.literal("Builder")))); return; }
+            if (slot == 26) { sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleBuilder.get())))); return; }
 
             BattleStatsType stat = null;
             if (slot == 10) stat = BattleStatsType.HP;
@@ -580,14 +576,14 @@ public class ServerMenuHandler {
             getContainer().setItem(11, createBtn("minecraft:red_terracotta", "&#FF5555-10", null));
             getContainer().setItem(12, createBtn("minecraft:red_stained_glass", "&#FF5555-1", null));
 
-            getContainer().setItem(13, createBtn("pixelmon:rare_candy", "&#55FFFFTarget " + statName + ": &#FFFFFF" + (currentVal + addedValues), "&#AAAAAATotal Cost: &#FFFF55" + totalCost + " " + cur));
+            getContainer().setItem(13, createBtn("pixelmon:rare_candy", "&#55FFFFTarget " + statName + ": &#FFFFFF" + (currentVal + addedValues), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(totalCost)).replace("%currency%", cur)));
 
             getContainer().setItem(14, createBtn("minecraft:green_stained_glass", "&#55FF55+1", null));
             getContainer().setItem(15, createBtn("minecraft:green_terracotta", "&#55FF55+10", null));
             getContainer().setItem(16, createBtn("minecraft:green_wool", "&#55FF55+50", null));
 
-            getContainer().setItem(30, createBtn("minecraft:emerald_block", "&#55FF55&lCONFIRM", "&#AAAAAAPay " + totalCost));
-            getContainer().setItem(32, createBtn("minecraft:barrier", "&#FF5555&lCANCEL", "&#AAAAAABack to Builder"));
+            getContainer().setItem(30, createBtn("minecraft:emerald_block", Language.STRINGS.btnConfirm.get(), Language.STRINGS.lorePay.get().replace("%cost%", String.valueOf(totalCost)).replace("%currency%", cur)));
+            getContainer().setItem(32, createBtn("minecraft:barrier", Language.STRINGS.btnCancel.get(), Language.STRINGS.btnBackBuilder.get()));
         }
 
         @Override
@@ -611,7 +607,7 @@ public class ServerMenuHandler {
             if (slot == 15) addedValues = Math.min(maxAllowed, addedValues + 10);
             if (slot == 16) addedValues = Math.min(maxAllowed, addedValues + 50);
 
-            if (slot == 32) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), Component.literal("Builder"))));
+            if (slot == 32) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleBuilder.get()))));
 
             if (slot == 30 && addedValues > 0) {
                 String cur = getCurrency(pkmn);
@@ -622,7 +618,7 @@ public class ServerMenuHandler {
                     else if (mode.equals("iv")) pkmn.getIVs().setStat(stat, currentVal + addedValues);
 
                     triggerSuccess(sp, pkmn, "+" + addedValues + " " + mode.toUpperCase(), totalCost, cur);
-                    sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), Component.literal("Builder"))));
+                    sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleBuilder.get()))));
                 } else {
                     triggerFail(sp, cur);
                 }
@@ -641,18 +637,17 @@ public class ServerMenuHandler {
             this.pSlot = pSlot;
             for (int i = 0; i < 36; i++) getContainer().setItem(i, getFiller());
 
-            // --- FIX: Alphabetically sorted natures! ---
             String[] natures = {"Adamant", "Bashful", "Bold", "Brave", "Calm", "Careful", "Docile", "Gentle", "Hardy", "Hasty", "Impish", "Jolly", "Lax", "Lonely", "Mild", "Modest", "Naive", "Naughty", "Quiet", "Quirky", "Rash", "Relaxed", "Sassy", "Serious", "Timid"};
 
             for (int i = 0; i < natures.length; i++) {
-                getContainer().setItem(i, createBtn("pixelmon:mint_" + natures[i].toLowerCase(), "&#55FFFF" + natures[i], "&#AAAAAAClick to set Nature"));
+                getContainer().setItem(i, createBtn("pixelmon:mint_" + natures[i].toLowerCase(), "&#55FFFF" + natures[i], Language.STRINGS.loreClickNature.get()));
             }
-            getContainer().setItem(35, createBtn("minecraft:barrier", "&#FF5555Back", null));
+            getContainer().setItem(35, createBtn("minecraft:barrier", Language.STRINGS.btnBack.get(), null));
         }
         @Override
         public void clicked(int slot, int b, ClickType c, Player p) {
             ServerPlayer sp = (ServerPlayer) p;
-            if (slot == 35) { sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), Component.literal("Builder")))); return; }
+            if (slot == 35) { sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleBuilder.get())))); return; }
             String[] natures = {"Adamant", "Bashful", "Bold", "Brave", "Calm", "Careful", "Docile", "Gentle", "Hardy", "Hasty", "Impish", "Jolly", "Lax", "Lonely", "Mild", "Modest", "Naive", "Naughty", "Quiet", "Quirky", "Rash", "Relaxed", "Sassy", "Serious", "Timid"};
             if (slot >= 0 && slot < natures.length) {
                 Pokemon pkmn = StorageProxy.getPartyNow(sp).get(pSlot);
@@ -672,12 +667,12 @@ public class ServerMenuHandler {
             for (int i = 0; i < 27; i++) getContainer().setItem(i, getFiller());
             getContainer().setItem(11, createBtn("minecraft:light_blue_wool", "&#55FFFFMale", null));
             getContainer().setItem(15, createBtn("minecraft:pink_wool", "&#FF55FFFemale", null));
-            getContainer().setItem(26, createBtn("minecraft:barrier", "&#FF5555Back", null));
+            getContainer().setItem(26, createBtn("minecraft:barrier", Language.STRINGS.btnBack.get(), null));
         }
         @Override
         public void clicked(int slot, int b, ClickType c, Player p) {
             ServerPlayer sp = (ServerPlayer) p;
-            if (slot == 26) { sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), Component.literal("Builder")))); return; }
+            if (slot == 26) { sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleBuilder.get())))); return; }
             Pokemon pkmn = StorageProxy.getPartyNow(sp).get(pSlot);
             String cur = getCurrency(pkmn);
             if (slot == 11) openConfirm(sp, pSlot, "gender:Male", getCost("gender", pkmn, cur), cur);
@@ -702,14 +697,14 @@ public class ServerMenuHandler {
             };
 
             for (int i = 0; i < growths.length; i++) {
-                getContainer().setItem(9 + i, createBtn(icons[i], "&#55AA00" + growths[i], "&#AAAAAAClick to set Growth"));
+                getContainer().setItem(9 + i, createBtn(icons[i], "&#55AA00" + growths[i], Language.STRINGS.loreClickGrowth.get()));
             }
-            getContainer().setItem(26, createBtn("minecraft:barrier", "&#FF5555Back", null));
+            getContainer().setItem(26, createBtn("minecraft:barrier", Language.STRINGS.btnBack.get(), null));
         }
         @Override
         public void clicked(int slot, int b, ClickType c, Player p) {
             ServerPlayer sp = (ServerPlayer) p;
-            if (slot == 26) { sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), Component.literal("Builder")))); return; }
+            if (slot == 26) { sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleBuilder.get())))); return; }
             String[] growths = {"Microscopic", "Pygmy", "Runt", "Small", "Ordinary", "Huge", "Giant", "Enormous", "Ginormous"};
             if (slot >= 9 && slot < 9 + growths.length) {
                 Pokemon pkmn = StorageProxy.getPartyNow(sp).get(pSlot);
@@ -728,21 +723,20 @@ public class ServerMenuHandler {
             this.pSlot = pSlot;
             for (int i = 0; i < 36; i++) getContainer().setItem(i, getFiller());
 
-            // --- FIX: Dynamic Hex Colored PokeBalls ---
             String[] balls = {"poke_ball", "great_ball", "ultra_ball", "master_ball", "premier_ball", "heal_ball", "net_ball", "nest_ball", "dive_ball", "dusk_ball", "timer_ball", "quick_ball", "repeat_ball", "safari_ball", "fast_ball", "level_ball", "lure_ball", "heavy_ball", "love_ball", "friend_ball", "moon_ball", "sport_ball", "park_ball", "dream_ball", "beast_ball", "cherish_ball"};
             String[] hexColors = {"&#FF5555", "&#5555FF", "&#FFFF55", "&#AA00AA", "&#FFFFFF", "&#FF55FF", "&#55FFFF", "&#55FF55", "&#5555FF", "&#555555", "&#FFAA00", "&#55FFFF", "&#FF5555", "&#55AA00", "&#FFAA00", "&#FFAA00", "&#5555FF", "&#AAAAAA", "&#FF55FF", "&#55FF55", "&#55FFFF", "&#FFAA00", "&#FFFF55", "&#FF55FF", "&#5555FF", "&#FF5555"};
 
             for (int i = 0; i < Math.min(balls.length, 35); i++) {
                 String cleanName = balls[i].replace("_", " ").toUpperCase();
                 String color = (i < hexColors.length) ? hexColors[i] : "&#FFFFFF";
-                getContainer().setItem(i, createBallBtn(balls[i], color + "&l" + cleanName, "&#AAAAAAClick to swap ball"));
+                getContainer().setItem(i, createBallBtn(balls[i], color + "&l" + cleanName, Language.STRINGS.loreClickBall.get()));
             }
-            getContainer().setItem(35, createBtn("minecraft:barrier", "&#FF5555Back", null));
+            getContainer().setItem(35, createBtn("minecraft:barrier", Language.STRINGS.btnBack.get(), null));
         }
         @Override
         public void clicked(int slot, int b, ClickType c, Player p) {
             ServerPlayer sp = (ServerPlayer) p;
-            if (slot == 35) { sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), Component.literal("Builder")))); return; }
+            if (slot == 35) { sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleBuilder.get())))); return; }
             String[] balls = {"poke_ball", "great_ball", "ultra_ball", "master_ball", "premier_ball", "heal_ball", "net_ball", "nest_ball", "dive_ball", "dusk_ball", "timer_ball", "quick_ball", "repeat_ball", "safari_ball", "fast_ball", "level_ball", "lure_ball", "heavy_ball", "love_ball", "friend_ball", "moon_ball", "sport_ball", "park_ball", "dream_ball", "beast_ball", "cherish_ball"};
             if (slot >= 0 && slot < Math.min(balls.length, 35)) {
                 Pokemon pkmn = StorageProxy.getPartyNow(sp).get(pSlot);
@@ -768,18 +762,17 @@ public class ServerMenuHandler {
             this.cur = cur;
 
             for (int i = 0; i < 27; i++) getContainer().setItem(i, getFiller());
-            getContainer().setItem(11, createBtn("minecraft:emerald_block", "&#55FF55&lCONFIRM", "&#AAAAAACost: &#FFFF55" + finalCost + " " + cur));
-            getContainer().setItem(15, createBtn("minecraft:barrier", "&#FF5555&lCANCEL", "&#AAAAAABack to Builder"));
+            getContainer().setItem(11, createBtn("minecraft:emerald_block", Language.STRINGS.btnConfirm.get(), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(finalCost)).replace("%currency%", cur)));
+            getContainer().setItem(15, createBtn("minecraft:barrier", Language.STRINGS.btnCancel.get(), Language.STRINGS.btnBackBuilder.get()));
         }
 
         @Override
         public void clicked(int slot, int b, ClickType c, Player p) {
             ServerPlayer sp = (ServerPlayer) p;
-            if (slot == 15) { sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), Component.literal("Builder")))); return; }
+            if (slot == 15) { sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleBuilder.get())))); return; }
             if (slot == 11) {
                 Pokemon pkmn = StorageProxy.getPartyNow(sp).get(pSlot);
 
-                // --- FIX: Advanced logic blocks wasting tokens on traits you already own ---
                 if (action.equals("shiny") && pkmn.isShiny() ||
                         action.equals("unshiny") && !pkmn.isShiny() ||
                         action.equals("untradeable") && pkmn.hasFlag(Flags.UNTRADEABLE) ||
@@ -787,20 +780,20 @@ public class ServerMenuHandler {
                         action.equals("unbreedable") && pkmn.hasFlag(Flags.UNBREEDABLE) ||
                         action.equals("breedable") && !pkmn.hasFlag(Flags.UNBREEDABLE) ||
                         (action.startsWith("ability:") && pkmn.getAbilitySlot() == Integer.parseInt(action.split(":")[1]))) {
-                    sp.sendSystemMessage(parseHexName("&#FF5555Pokémon already has that trait!"));
+                    sp.sendSystemMessage(parseHexName(Language.STRINGS.msgAlreadyHasTrait.get()));
                     return;
                 }
 
                 if (action.startsWith("nature:")) {
                     if (pkmn.getNature().name().equalsIgnoreCase(action.split(":")[1])) {
-                        sp.sendSystemMessage(parseHexName("&#FF5555Pokémon already has that Nature!"));
+                        sp.sendSystemMessage(parseHexName(Language.STRINGS.msgAlreadyHasNature.get()));
                         return;
                     }
                 }
 
                 if (action.startsWith("gender:")) {
                     if (pkmn.getGender().name().equalsIgnoreCase(action.split(":")[1])) {
-                        sp.sendSystemMessage(parseHexName("&#FF5555Pokémon already has that Gender!"));
+                        sp.sendSystemMessage(parseHexName(Language.STRINGS.msgAlreadyHasGender.get()));
                         return;
                     }
                 }
@@ -808,7 +801,7 @@ public class ServerMenuHandler {
                 if (action.startsWith("ball:")) {
                     String bId = action.split(":")[1];
                     if (pkmn.getBall().toString().equalsIgnoreCase("pixelmon:" + bId) || pkmn.getBall().toString().equalsIgnoreCase(bId)) {
-                        sp.sendSystemMessage(parseHexName("&#FF5555Pokémon is already in that Pokéball!"));
+                        sp.sendSystemMessage(parseHexName(Language.STRINGS.msgAlreadyHasBall.get()));
                         return;
                     }
                 }
@@ -830,7 +823,7 @@ public class ServerMenuHandler {
                     }
                     double targetSize = gData.mean() + (zScore * gData.standardDeviation());
                     if (Math.abs(pkmn.getSize() - targetSize) < 0.01) {
-                        sp.sendSystemMessage(parseHexName("&#FF5555Pokémon already has that Growth!"));
+                        sp.sendSystemMessage(parseHexName(Language.STRINGS.msgAlreadyHasGrowth.get()));
                         return;
                     }
                 }
@@ -871,14 +864,14 @@ public class ServerMenuHandler {
 
                         triggerSuccess(sp, pkmn, action, finalCost, cur);
                     } catch (Exception e) {
-                        sp.sendSystemMessage(parseHexName("&#FF5555Error applying trait."));
+                        sp.sendSystemMessage(parseHexName(Language.STRINGS.msgError.get()));
                         UltimatePokeBuilder.LOGGER.error("Failed to apply UPB trait", e);
                     }
                 } else {
                     triggerFail(sp, cur);
                 }
 
-                sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), Component.literal("Builder"))));
+                sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BuilderMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleBuilder.get()))));
             }
         }
         @Override public boolean stillValid(Player p) { return true; }
