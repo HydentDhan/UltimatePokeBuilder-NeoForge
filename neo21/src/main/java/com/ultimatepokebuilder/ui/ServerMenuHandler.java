@@ -342,6 +342,7 @@ public class ServerMenuHandler {
             Pokemon pkmn = StorageProxy.getPartyNow(sp).get(pSlot);
             if (pkmn == null) return;
             String cur = getCurrency(pkmn);
+            boolean isLegend = pkmn.isLegendary() || pkmn.isUltraBeast();
 
             com.pixelmonmod.pixelmon.api.pokemon.growth.GrowthData gData = pkmn.getForm().getGrowthData();
             double zScore = (pkmn.getSize() - gData.mean()) / gData.standardDeviation();
@@ -402,7 +403,9 @@ public class ServerMenuHandler {
                 getContainer().setItem(Config.SERVER.slotUntradeable.get(), createBtn("minecraft:iron_bars", Language.STRINGS.btnMakeUntradeable.get(), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("untradeable", pkmn, cur))).replace("%currency%", cur)));
             }
 
-            if (pkmn.hasFlag(Flags.UNBREEDABLE)) {
+            if (isLegend) {
+                getContainer().setItem(Config.SERVER.slotUnbreedable.get(), createBtn("minecraft:barrier", "&#FF5555Legendary", "&#AAAAAALegendary Pokémon cannot breed."));
+            } else if (pkmn.hasFlag(Flags.UNBREEDABLE)) {
                 getContainer().setItem(Config.SERVER.slotUnbreedable.get(), createBtn("minecraft:egg", Language.STRINGS.btnMakeBreedable.get(), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("unbreedable", pkmn, cur))).replace("%currency%", cur)));
             } else {
                 getContainer().setItem(Config.SERVER.slotUnbreedable.get(), createBtn("minecraft:iron_bars", Language.STRINGS.btnMakeUnbreedable.get(), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("unbreedable", pkmn, cur))).replace("%currency%", cur)));
@@ -413,7 +416,7 @@ public class ServerMenuHandler {
             getContainer().setItem(Config.SERVER.slotNature.get(), createBtn("pixelmon:mint_adamant", Language.STRINGS.btnNature.get(), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("nature", pkmn, cur))).replace("%currency%", cur)));
             getContainer().setItem(Config.SERVER.slotGrowth.get(), createBtn("minecraft:slime_block", Language.STRINGS.btnGrowth.get(), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("growth", pkmn, cur))).replace("%currency%", cur)));
 
-            if (pkmn.getGender() == Gender.NONE) {
+            if (isLegend || pkmn.getGender() == Gender.NONE) {
                 getContainer().setItem(Config.SERVER.slotGender.get(), createBtn("minecraft:barrier", Language.STRINGS.btnGenderless.get(), Language.STRINGS.loreGenderless.get()));
             } else {
                 getContainer().setItem(Config.SERVER.slotGender.get(), createBtn("minecraft:pink_dye", Language.STRINGS.btnGender.get(), Language.STRINGS.loreCost.get().replace("%cost%", String.valueOf(getCost("gender", pkmn, cur))).replace("%currency%", cur)));
@@ -431,6 +434,7 @@ public class ServerMenuHandler {
             ServerPlayer sp = (ServerPlayer) p;
             Pokemon pkmn = StorageProxy.getPartyNow(sp).get(pSlot);
             String cur = getCurrency(pkmn);
+            boolean isLegend = pkmn.isLegendary() || pkmn.isUltraBeast();
 
             if (slot == Config.SERVER.slotBack.get()) sp.server.execute(() -> openPartyMenu(sp));
             if (slot == Config.SERVER.slotLevel.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new AdjustMenu(id, inv, pSlot, "level", null), parseHexName(Language.STRINGS.titleLevel.get()))));
@@ -439,7 +443,7 @@ public class ServerMenuHandler {
             if (slot == Config.SERVER.slotGrowth.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new GrowthMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleGrowth.get()))));
             if (slot == Config.SERVER.slotBall.get()) sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new BallMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleBall.get()))));
 
-            if (slot == Config.SERVER.slotGender.get() && pkmn.getGender() != Gender.NONE) {
+            if (slot == Config.SERVER.slotGender.get() && !isLegend && pkmn.getGender() != Gender.NONE) {
                 sp.server.execute(() -> sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> new GenderMenu(id, inv, pSlot), parseHexName(Language.STRINGS.titleGender.get()))));
             }
 
@@ -448,7 +452,10 @@ public class ServerMenuHandler {
 
             if (slot == Config.SERVER.slotShiny.get()) openConfirm(sp, pSlot, pkmn.isShiny() ? "unshiny" : "shiny", getCost("shiny", pkmn, cur), cur);
             if (slot == Config.SERVER.slotUntradeable.get()) openConfirm(sp, pSlot, pkmn.hasFlag(Flags.UNTRADEABLE) ? "tradeable" : "untradeable", getCost("untradeable", pkmn, cur), cur);
-            if (slot == Config.SERVER.slotUnbreedable.get()) openConfirm(sp, pSlot, pkmn.hasFlag(Flags.UNBREEDABLE) ? "breedable" : "unbreedable", getCost("unbreedable", pkmn, cur), cur);
+
+            if (slot == Config.SERVER.slotUnbreedable.get() && !isLegend) {
+                openConfirm(sp, pSlot, pkmn.hasFlag(Flags.UNBREEDABLE) ? "breedable" : "unbreedable", getCost("unbreedable", pkmn, cur), cur);
+            }
 
             if (slot == Config.SERVER.slotRename.get()) {
                 sp.sendSystemMessage(parseHexName(Language.STRINGS.msgRenameDisabled.get()));
@@ -494,9 +501,12 @@ public class ServerMenuHandler {
             String cur = getCurrency(pkmn);
 
             try {
-                if (slot == 11 && pkmn.getForm().getAbilities().getAbilities().length > 0) openConfirm(sp, pSlot, "ability:0", getCost("ability", pkmn, cur), cur);
-                if (slot == 13 && pkmn.getForm().getAbilities().getAbilities().length > 1) openConfirm(sp, pSlot, "ability:1", getCost("ability", pkmn, cur), cur);
-                if (slot == 15 && pkmn.getForm().getAbilities().getHiddenAbilities().length > 0) openConfirm(sp, pSlot, "ability:2", getCost("hidden_ability", pkmn, cur), cur);
+                var normalAbs = pkmn.getForm().getAbilities().getAbilities();
+                var hiddenAbs = pkmn.getForm().getAbilities().getHiddenAbilities();
+
+                if (slot == 11 && normalAbs.length > 0) openConfirm(sp, pSlot, "ability:" + normalAbs[0].getName(), getCost("ability", pkmn, cur), cur);
+                if (slot == 13 && normalAbs.length > 1) openConfirm(sp, pSlot, "ability:" + normalAbs[1].getName(), getCost("ability", pkmn, cur), cur);
+                if (slot == 15 && hiddenAbs.length > 0) openConfirm(sp, pSlot, "ability:" + hiddenAbs[0].getName(), getCost("hidden_ability", pkmn, cur), cur);
             } catch (Exception ignored) {}
         }
         @Override public boolean stillValid(Player p) { return true; }
@@ -778,10 +788,17 @@ public class ServerMenuHandler {
                         action.equals("untradeable") && pkmn.hasFlag(Flags.UNTRADEABLE) ||
                         action.equals("tradeable") && !pkmn.hasFlag(Flags.UNTRADEABLE) ||
                         action.equals("unbreedable") && pkmn.hasFlag(Flags.UNBREEDABLE) ||
-                        action.equals("breedable") && !pkmn.hasFlag(Flags.UNBREEDABLE) ||
-                        (action.startsWith("ability:") && pkmn.getAbilitySlot() == Integer.parseInt(action.split(":")[1]))) {
+                        action.equals("breedable") && !pkmn.hasFlag(Flags.UNBREEDABLE)) {
                     sp.sendSystemMessage(parseHexName(Language.STRINGS.msgAlreadyHasTrait.get()));
                     return;
+                }
+
+                if (action.startsWith("ability:")) {
+                    String targetAb = action.split(":")[1];
+                    if (pkmn.getAbility().getName().equalsIgnoreCase(targetAb)) {
+                        sp.sendSystemMessage(parseHexName(Language.STRINGS.msgAlreadyHasTrait.get()));
+                        return;
+                    }
                 }
 
                 if (action.startsWith("nature:")) {
@@ -799,8 +816,8 @@ public class ServerMenuHandler {
                 }
 
                 if (action.startsWith("ball:")) {
-                    String bId = action.split(":")[1];
-                    if (pkmn.getBall().toString().equalsIgnoreCase("pixelmon:" + bId) || pkmn.getBall().toString().equalsIgnoreCase(bId)) {
+                    String bId = action.split(":")[1].toLowerCase();
+                    if (pkmn.getBall().toString().toLowerCase().contains(bId)) {
                         sp.sendSystemMessage(parseHexName(Language.STRINGS.msgAlreadyHasBall.get()));
                         return;
                     }
@@ -836,7 +853,10 @@ public class ServerMenuHandler {
                         else if (action.equals("tradeable")) pkmn.removeFlag(Flags.UNTRADEABLE);
                         else if (action.equals("unbreedable")) pkmn.addFlag(Flags.UNBREEDABLE);
                         else if (action.equals("breedable")) pkmn.removeFlag(Flags.UNBREEDABLE);
-                        else if (action.startsWith("ability:")) pkmn.setAbilitySlot(Integer.parseInt(action.split(":")[1]));
+                        else if (action.startsWith("ability:")) {
+                            String specName = action.split(":")[1].replace(" ", "").toLowerCase();
+                            PokemonSpecificationProxy.create("ability:" + specName).get().apply(pkmn);
+                        }
                         else if (action.startsWith("growth:")) {
                             com.pixelmonmod.pixelmon.api.pokemon.growth.GrowthData gData = pkmn.getForm().getGrowthData();
                             double mean = gData.mean();
